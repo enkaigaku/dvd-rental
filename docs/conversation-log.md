@@ -559,3 +559,243 @@ dvd-rental/
 ---
 
 *状态：需求分析阶段完成 —— 所有技术决策已确认，准备进入实施阶段*
+
+---
+
+## 实施阶段
+
+### 阶段 1：基础设施搭建
+
+**用户**：先从 infrastructure 部分开始，postgres 容器镜像版本使用 17.6-alpine。代码版本管理用 git，也要使用 .gitignore。每完成一个阶段 commit 一下，commit 信息格式采用 git workflow，内容用英文。
+
+**助手**：完成基础设施搭建，包括：
+
+#### 创建的文件
+- **`.gitignore`** — Go、IDE、OS、Docker、环境变量等忽略规则
+- **`go.mod`** — 模块 `github.com/tokyoyuan/dvd-rental`，Go 1.25.7
+- **`deployments/docker-compose.yml`** — 三个基础设施容器：
+  - PostgreSQL 17.6-alpine（端口 5432，用户/密码 dvdrental，挂载 migrations）
+  - Redis 7-alpine（端口 6379）
+  - NATS 2-alpine + JetStream（端口 4222/8222）
+  - 所有容器配有 healthcheck
+- **`Makefile`** — `infra-up`、`infra-down`、`infra-logs`、`infra-ps` targets
+- **目录结构** — `cmd/`、`internal/`、`pkg/`、`proto/`、`sql/`、`gen/`、`deployments/docker/`、`docs/` 各放 `.gitkeep` 占位
+
+#### Git 提交
+- `git init` + 首次提交：`chore: initial project setup with infrastructure`
+
+---
+
+### 阶段 2：Store Service 实施
+
+**用户**：从相对容易的开始，每完成一个步骤都让我检查一下。
+
+**助手**：选择门店服务（store-service）作为第一个实现的微服务。原因：只管理 `store` 和 `staff` 两张表，数据量小、逻辑简单，适合建立可复用的模式。按 6 步计划实施。
+
+#### Step 1：Proto 定义 + 代码生成工具配置
+
+**新增文件：**
+
+1. **`proto/store/v1/store.proto`** — gRPC 服务定义
+   - `StoreService`：GetStore、ListStores、CreateStore、UpdateStore、DeleteStore
+   - `StaffService`：GetStaff、GetStaffByUsername、ListStaff、ListStaffByStore、CreateStaff、UpdateStaff、DeactivateStaff、UpdateStaffPassword
+   - 关键设计：
+     - Staff 不做物理删除（被 rental/payment FK RESTRICT），只 DeactivateStaff（soft delete）
+     - `picture`（BYTEA）仅在 GetStaff 单条查询时返回，List 不返回
+     - `password_hash` 仅在 GetStaffByUsername 中返回（供 BFF 认证用）
+
+2. **`buf.yaml`** + **`buf.gen.yaml`** — Buf v2 工具链配置
+   - proto 路径：`proto`，lint: STANDARD，breaking: FILE
+   - 插件：protocolbuffers/go + grpc/go，输出到 `gen/proto`
+
+3. **`sqlc.yaml`** — sqlc 配置
+   - 引擎：postgresql，查询：`sql/queries`，schema：`migrations`
+   - 输出：`internal/store/repository/sqlcgen`，sql_package：pgx/v5
+
+4. **`sql/queries/store.sql`** — 6 个查询（Get/List/Count/Create/Update/Delete）
+
+5. **`sql/queries/staff.sql`** — 16 个查询，按需选择不同列：
+   - GetStaff：含 picture，不含 password_hash
+   - GetStaffByUsername：含 password_hash，不含 picture
+   - List 系列：不含 picture 和 password_hash
+   - Count 系列：4 个变体（全部/活跃/按门店/按门店活跃）
+   - Create/Update/Deactivate/UpdatePassword
+
+6. **`Makefile`** — 新增 `proto-gen`、`sqlc-gen`、`generate` targets
+
+**Git 提交**：`feat(store): add proto definitions and code generation config`
+
+#### Step 2：运行代码生成
+
+安装工具（`brew install bufbuild/buf/buf sqlc`），执行代码生成：
+
+- `make proto-gen`（buf generate）→ 生成 `gen/proto/store/v1/store.pb.go` + `store_grpc.pb.go`
+- `make sqlc-gen`（sqlc generate）→ 生成 `internal/store/repository/sqlcgen/` 下的 `db.go`、`models.go`、`store.sql.go`、`staff.sql.go`
+
+**Git 提交**：`feat(store): generate protobuf and sqlc code`
+
+#### Step 3：Repository 层
+
+**新增文件：**
+
+1. **`internal/store/model/model.go`** — 领域模型
+   ```go
+   type Store struct {
+       StoreID, ManagerStaffID, AddressID int32
+       LastUpdate time.Time
+   }
+   type Staff struct {
+       StaffID int32; FirstName, LastName string; AddressID int32
+       Email string; StoreID int32; Active bool; Username string
+       PasswordHash string; Picture []byte; LastUpdate time.Time
+   }
+   ```
+
+2. **`internal/store/repository/store_repository.go`**
+   - 接口 `StoreRepository`（6 个方法）
+   - 实现包装 sqlcgen，pgtype → Go 标准类型转换
+   - `ErrNotFound` 哨兵错误映射 `pgx.ErrNoRows`
+
+3. **`internal/store/repository/staff_repository.go`**
+   - 接口 `StaffRepository`（14 个方法）
+   - `CreateStaffParams` / `UpdateStaffParams` 参数结构体
+   - 每种 sqlc 行类型有独立的转换函数（因为不同查询返回不同列）
+
+**设计要点**：
+- Repository 层负责 pgtype ↔ Go 标准类型转换，上层无需关心数据库类型
+- 循环 FK（store ↔ staff）通过两个 repo 分别注入 service 层解决
+
+**Git 提交**：`feat(store): add repository layer with domain models`
+
+#### Step 4：Service 层（业务逻辑）
+
+**新增文件：**
+
+1. **`internal/store/service/errors.go`** — 三个哨兵错误
+   - `ErrNotFound`、`ErrInvalidArgument`、`ErrAlreadyExists`
+
+2. **`internal/store/service/pgutil.go`**
+   - `isUniqueViolation(err)` 检查 PostgreSQL 错误码 "23505"
+
+3. **`internal/store/service/store_service.go`**
+   - `StoreService` 同时持有 storeRepo 和 staffRepo（交叉验证）
+   - CreateStore/UpdateStore 验证 manager staff 存在且 active
+   - 分页：defaultPageSize=20，maxPageSize=100，`clampPagination()` 工具函数
+   - 唯一约束冲突 → ErrAlreadyExists
+
+4. **`internal/store/service/staff_service.go`**
+   - `StaffService` 同时持有 staffRepo 和 storeRepo（交叉验证）
+   - CreateStaff/UpdateStaff 验证 store 存在
+   - ListStaff/ListStaffByStore 支持 activeOnly 过滤
+   - UpdateStaffPassword 先验证 staff 存在
+
+**Git 提交**：`feat(store): add service layer with business logic`
+
+#### Step 5：Handler 层（gRPC）
+
+**新增文件：**
+
+1. **`internal/store/handler/convert.go`** — 转换工具
+   - `toGRPCError()`：哨兵错误 → gRPC status code 映射
+     - ErrNotFound → codes.NotFound
+     - ErrInvalidArgument → codes.InvalidArgument
+     - ErrAlreadyExists → codes.AlreadyExists
+     - default → codes.Internal
+   - `storeToProto()` / `staffToProto()`：领域模型 → proto 消息
+
+2. **`internal/store/handler/store_handler.go`**
+   - 嵌入 `UnimplementedStoreServiceServer`，实现 5 个 RPC
+   - 薄层：委托 service 层，转换错误
+
+3. **`internal/store/handler/staff_handler.go`**
+   - 嵌入 `UnimplementedStaffServiceServer`，实现 8 个 RPC
+   - `toStaffListResponse()` 辅助函数处理列表响应
+
+**Git 提交**：`feat(store): add gRPC handler layer`
+
+#### Step 6：Main 入口 + 配置
+
+**新增文件：**
+
+1. **`internal/store/config/config.go`** — 环境变量配置
+   - `DATABASE_URL`（必填）
+   - `GRPC_PORT`（默认 "50051"）
+   - `LOG_LEVEL`（默认 "info"）
+
+2. **`cmd/store-service/main.go`** — 服务入口
+   - `run()` 函数返回 error，`main()` 只负责调用和 `log.Fatal`
+   - `pgxpool.New()` + `pool.Ping()` 建立数据库连接
+   - 依赖注入：repos → services → handlers
+   - gRPC server 注册 StoreService + StaffService
+   - 标准 gRPC Health Check（`grpc.health.v1.Health`）
+   - gRPC Reflection（开发调试用）
+   - Graceful Shutdown：监听 SIGINT/SIGTERM → 设置 health NOT_SERVING → GracefulStop()
+
+**修改文件：**
+- **`go.mod`** — 添加依赖：google.golang.org/grpc v1.78.0, google.golang.org/protobuf v1.36.11, github.com/jackc/pgx/v5 v5.8.0
+- **`Makefile`** — 新增 `run-store`、`test`、`lint`、`fmt` targets
+- **`.gitignore`** — 添加各服务二进制文件名（store-service, film-service 等）
+
+**Git 提交**：`feat(store): add main entry point, config, and dependency wiring`
+
+#### 遇到的问题及解决
+
+1. **buf/sqlc 未安装**：通过 Homebrew 安装 `brew install bufbuild/buf/buf sqlc`
+2. **buf.yaml 多余依赖**：初始配置中包含 `buf.build/googleapis/googleapis` 依赖，实际只用了内置的 well-known types（Timestamp、Empty），移除后解决警告
+3. **docker-compose migrations 路径**：`deployments/docker-compose.yml` 中 migrations 挂载路径应为 `../migrations`（一层），非 `../../migrations`
+4. **go mod tidy**：添加 repository 代码后需先执行 `go mod tidy` 再编译
+5. **二进制文件误入 git**：`go build ./cmd/store-service/` 在项目根目录生成了 `store-service` 二进制，被 `git add .` 暂存。通过 `git reset HEAD store-service` + `rm -f store-service` 清理，并更新 `.gitignore` 添加所有服务二进制名
+
+#### Store Service 文件清单
+
+```
+cmd/store-service/
+└── main.go                              # 服务入口、依赖注入、graceful shutdown
+
+internal/store/
+├── config/
+│   └── config.go                        # 环境变量配置加载
+├── handler/
+│   ├── convert.go                       # proto ↔ 领域模型转换、错误映射
+│   ├── store_handler.go                 # StoreService gRPC 实现
+│   └── staff_handler.go                 # StaffService gRPC 实现
+├── model/
+│   └── model.go                         # Store、Staff 领域模型
+├── repository/
+│   ├── store_repository.go              # StoreRepository 接口 + pgx 实现
+│   ├── staff_repository.go              # StaffRepository 接口 + pgx 实现
+│   └── sqlcgen/                         # sqlc 自动生成（勿手动修改）
+│       ├── db.go
+│       ├── models.go
+│       ├── store.sql.go
+│       └── staff.sql.go
+└── service/
+    ├── errors.go                        # ErrNotFound, ErrInvalidArgument, ErrAlreadyExists
+    ├── pgutil.go                        # isUniqueViolation() PostgreSQL 错误检查
+    ├── store_service.go                 # Store 业务逻辑（含交叉验证）
+    └── staff_service.go                 # Staff 业务逻辑（含交叉验证）
+
+proto/store/v1/
+└── store.proto                          # gRPC 服务定义
+
+gen/proto/store/v1/
+├── store.pb.go                          # protobuf 生成代码
+└── store_grpc.pb.go                     # gRPC 生成代码
+
+sql/queries/
+├── store.sql                            # Store 表 SQL 查询
+└── staff.sql                            # Staff 表 SQL 查询
+```
+
+#### 可复用模式（供后续服务参考）
+
+1. **三层架构**：handler（proto 转换 + 错误映射）→ service（业务逻辑 + 验证）→ repository（接口 + pgx/sqlc 实现）
+2. **领域模型与 DB 类型隔离**：pgtype 转换封装在 repository 层
+3. **哨兵错误体系**：service 层定义哨兵错误，handler 层统一映射为 gRPC status code
+4. **分页模式**：defaultPageSize + maxPageSize + clampPagination()
+5. **main.go 模式**：run() 返回 error + graceful shutdown + health check + reflection
+6. **sqlc 按需选列**：敏感字段（password_hash）和大字段（picture）在 List 查询中排除
+
+---
+
+*状态：Store Service 实施完成 —— 准备实施下一个微服务*

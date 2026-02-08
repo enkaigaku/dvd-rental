@@ -1,0 +1,253 @@
+syntax = "proto3";
+
+package film.v1;
+
+option go_package = "github.com/tokyoyuan/dvd-rental/gen/proto/film/v1;filmv1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// FilmService manages films and their relationships with actors and categories.
+service FilmService {
+  rpc GetFilm(GetFilmRequest) returns (FilmDetail);
+  rpc ListFilms(ListFilmsRequest) returns (ListFilmsResponse);
+  rpc SearchFilms(SearchFilmsRequest) returns (ListFilmsResponse);
+  rpc ListFilmsByCategory(ListFilmsByCategoryRequest) returns (ListFilmsResponse);
+  rpc ListFilmsByActor(ListFilmsByActorRequest) returns (ListFilmsResponse);
+  rpc CreateFilm(CreateFilmRequest) returns (Film);
+  rpc UpdateFilm(UpdateFilmRequest) returns (Film);
+  rpc DeleteFilm(DeleteFilmRequest) returns (google.protobuf.Empty);
+  rpc AddActorToFilm(AddActorToFilmRequest) returns (google.protobuf.Empty);
+  rpc RemoveActorFromFilm(RemoveActorFromFilmRequest) returns (google.protobuf.Empty);
+  rpc AddCategoryToFilm(AddCategoryToFilmRequest) returns (google.protobuf.Empty);
+  rpc RemoveCategoryFromFilm(RemoveCategoryFromFilmRequest) returns (google.protobuf.Empty);
+}
+
+// ActorService manages actors.
+service ActorService {
+  rpc GetActor(GetActorRequest) returns (Actor);
+  rpc ListActors(ListActorsRequest) returns (ListActorsResponse);
+  rpc ListActorsByFilm(ListActorsByFilmRequest) returns (ListActorsResponse);
+  rpc CreateActor(CreateActorRequest) returns (Actor);
+  rpc UpdateActor(UpdateActorRequest) returns (Actor);
+  rpc DeleteActor(DeleteActorRequest) returns (google.protobuf.Empty);
+}
+
+// CategoryService provides read-only access to film categories.
+service CategoryService {
+  rpc GetCategory(GetCategoryRequest) returns (Category);
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+}
+
+// LanguageService provides read-only access to languages.
+service LanguageService {
+  rpc GetLanguage(GetLanguageRequest) returns (Language);
+  rpc ListLanguages(ListLanguagesRequest) returns (ListLanguagesResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Film
+// ---------------------------------------------------------------------------
+
+// Film represents basic film data used in list views.
+message Film {
+  int32 film_id = 1;
+  string title = 2;
+  string description = 3;
+  int32 release_year = 4;
+  int32 language_id = 5;
+  int32 original_language_id = 6;
+  int32 rental_duration = 7;
+  string rental_rate = 8;
+  int32 length = 9;
+  string replacement_cost = 10;
+  string rating = 11;
+  repeated string special_features = 12;
+  google.protobuf.Timestamp last_update = 13;
+}
+
+// FilmDetail is an enriched film message for single-film views.
+message FilmDetail {
+  Film film = 1;
+  string language_name = 2;
+  string original_language_name = 3;
+  repeated Actor actors = 4;
+  repeated Category categories = 5;
+}
+
+message GetFilmRequest {
+  int32 film_id = 1;
+}
+
+message ListFilmsRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListFilmsResponse {
+  repeated Film films = 1;
+  int32 total_count = 2;
+}
+
+message SearchFilmsRequest {
+  string query = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message ListFilmsByCategoryRequest {
+  int32 category_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message ListFilmsByActorRequest {
+  int32 actor_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message CreateFilmRequest {
+  string title = 1;
+  string description = 2;
+  int32 release_year = 3;
+  int32 language_id = 4;
+  int32 original_language_id = 5;
+  int32 rental_duration = 6;
+  string rental_rate = 7;
+  int32 length = 8;
+  string replacement_cost = 9;
+  string rating = 10;
+  repeated string special_features = 11;
+}
+
+message UpdateFilmRequest {
+  int32 film_id = 1;
+  string title = 2;
+  string description = 3;
+  int32 release_year = 4;
+  int32 language_id = 5;
+  int32 original_language_id = 6;
+  int32 rental_duration = 7;
+  string rental_rate = 8;
+  int32 length = 9;
+  string replacement_cost = 10;
+  string rating = 11;
+  repeated string special_features = 12;
+}
+
+message DeleteFilmRequest {
+  int32 film_id = 1;
+}
+
+message AddActorToFilmRequest {
+  int32 film_id = 1;
+  int32 actor_id = 2;
+}
+
+message RemoveActorFromFilmRequest {
+  int32 film_id = 1;
+  int32 actor_id = 2;
+}
+
+message AddCategoryToFilmRequest {
+  int32 film_id = 1;
+  int32 category_id = 2;
+}
+
+message RemoveCategoryFromFilmRequest {
+  int32 film_id = 1;
+  int32 category_id = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Actor
+// ---------------------------------------------------------------------------
+
+message Actor {
+  int32 actor_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  google.protobuf.Timestamp last_update = 4;
+}
+
+message GetActorRequest {
+  int32 actor_id = 1;
+}
+
+message ListActorsRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListActorsResponse {
+  repeated Actor actors = 1;
+  int32 total_count = 2;
+}
+
+message ListActorsByFilmRequest {
+  int32 film_id = 1;
+}
+
+message CreateActorRequest {
+  string first_name = 1;
+  string last_name = 2;
+}
+
+message UpdateActorRequest {
+  int32 actor_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+}
+
+message DeleteActorRequest {
+  int32 actor_id = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Category
+// ---------------------------------------------------------------------------
+
+message Category {
+  int32 category_id = 1;
+  string name = 2;
+  google.protobuf.Timestamp last_update = 3;
+}
+
+message GetCategoryRequest {
+  int32 category_id = 1;
+}
+
+message ListCategoriesRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+  int32 total_count = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Language
+// ---------------------------------------------------------------------------
+
+message Language {
+  int32 language_id = 1;
+  string name = 2;
+  google.protobuf.Timestamp last_update = 3;
+}
+
+message GetLanguageRequest {
+  int32 language_id = 1;
+}
+
+message ListLanguagesRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListLanguagesResponse {
+  repeated Language languages = 1;
+  int32 total_count = 2;
+}

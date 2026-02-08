@@ -1,12 +1,22 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    queries: "sql/queries"
+    queries: "sql/queries/store"
     schema: "migrations"
     gen:
       go:
         package: "sqlcgen"
         out: "internal/store/repository/sqlcgen"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_empty_slices: true
+  - engine: "postgresql"
+    queries: "sql/queries/film"
+    schema: "migrations"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/film/repository/sqlcgen"
         sql_package: "pgx/v5"
         emit_json_tags: true
         emit_empty_slices: true
