@@ -5,6 +5,13 @@
 *.so
 *.dylib
 bin/
+store-service
+film-service
+customer-service
+rental-service
+payment-service
+customer-bff
+admin-bff
 
 # Test binary
 *.test

@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package store.v1;
+
+option go_package = "github.com/tokyoyuan/dvd-rental/gen/proto/store/v1;storev1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// StoreService manages DVD rental store entities.
+service StoreService {
+  rpc GetStore(GetStoreRequest) returns (Store);
+  rpc ListStores(ListStoresRequest) returns (ListStoresResponse);
+  rpc CreateStore(CreateStoreRequest) returns (Store);
+  rpc UpdateStore(UpdateStoreRequest) returns (Store);
+  rpc DeleteStore(DeleteStoreRequest) returns (google.protobuf.Empty);
+}
+
+// StaffService manages staff members within stores.
+service StaffService {
+  rpc GetStaff(GetStaffRequest) returns (Staff);
+  rpc GetStaffByUsername(GetStaffByUsernameRequest) returns (Staff);
+  rpc ListStaff(ListStaffRequest) returns (ListStaffResponse);
+  rpc ListStaffByStore(ListStaffByStoreRequest) returns (ListStaffResponse);
+  rpc CreateStaff(CreateStaffRequest) returns (Staff);
+  rpc UpdateStaff(UpdateStaffRequest) returns (Staff);
+  rpc DeactivateStaff(DeactivateStaffRequest) returns (Staff);
+  rpc UpdateStaffPassword(UpdateStaffPasswordRequest) returns (google.protobuf.Empty);
+}
+
+// ----------------- Store Messages -----------------
+
+message Store {
+  int32 store_id = 1;
+  int32 manager_staff_id = 2;
+  int32 address_id = 3;
+  google.protobuf.Timestamp last_update = 4;
+}
+
+message GetStoreRequest {
+  int32 store_id = 1;
+}
+
+message ListStoresRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListStoresResponse {
+  repeated Store stores = 1;
+  int32 total_count = 2;
+}
+
+message CreateStoreRequest {
+  int32 manager_staff_id = 1;
+  int32 address_id = 2;
+}
+
+message UpdateStoreRequest {
+  int32 store_id = 1;
+  int32 manager_staff_id = 2;
+  int32 address_id = 3;
+}
+
+message DeleteStoreRequest {
+  int32 store_id = 1;
+}
+
+// ----------------- Staff Messages -----------------
+
+message Staff {
+  int32 staff_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  int32 address_id = 4;
+  string email = 5;
+  int32 store_id = 6;
+  bool active = 7;
+  string username = 8;
+  // password_hash is only populated in GetStaffByUsername (for BFF auth).
+  string password_hash = 9;
+  // picture is only populated in GetStaff (single record query).
+  bytes picture = 10;
+  google.protobuf.Timestamp last_update = 11;
+}
+
+message GetStaffRequest {
+  int32 staff_id = 1;
+}
+
+message GetStaffByUsernameRequest {
+  string username = 1;
+}
+
+message ListStaffRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+  bool active_only = 3;
+}
+
+message ListStaffByStoreRequest {
+  int32 store_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+  bool active_only = 4;
+}
+
+message ListStaffResponse {
+  repeated Staff staff = 1;
+  int32 total_count = 2;
+}
+
+message CreateStaffRequest {
+  string first_name = 1;
+  string last_name = 2;
+  int32 address_id = 3;
+  string email = 4;
+  int32 store_id = 5;
+  string username = 6;
+  string password_hash = 7;
+}
+
+message UpdateStaffRequest {
+  int32 staff_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  int32 address_id = 4;
+  string email = 5;
+  int32 store_id = 6;
+  string username = 7;
+}
+
+message DeactivateStaffRequest {
+  int32 staff_id = 1;
+}
+
+message UpdateStaffPasswordRequest {
+  int32 staff_id = 1;
+  string password_hash = 2;
+}
