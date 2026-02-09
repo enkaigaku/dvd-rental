@@ -1,6 +1,7 @@
 .PHONY: infra-up infra-down infra-logs infra-ps \
        proto-gen sqlc-gen generate \
-       run-store run-film run-customer run-rental run-payment test lint fmt
+       run-store run-film run-customer run-rental run-payment \
+       run-customer-bff test lint fmt
 
 # Infrastructure
 infra-up:
@@ -39,6 +40,10 @@ run-rental:
 
 run-payment:
 	go run ./cmd/payment-service
+
+# Run BFF services
+run-customer-bff:
+	go run ./cmd/customer-bff
 
 # Testing
 test:
