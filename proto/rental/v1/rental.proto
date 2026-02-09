@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package rental.v1;
+
+option go_package = "github.com/tokyoyuan/dvd-rental/gen/proto/rental/v1;rentalv1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// RentalService manages DVD rental transactions.
+service RentalService {
+  rpc GetRental(GetRentalRequest) returns (RentalDetail);
+  rpc ListRentals(ListRentalsRequest) returns (ListRentalsResponse);
+  rpc ListRentalsByCustomer(ListRentalsByCustomerRequest) returns (ListRentalsResponse);
+  rpc ListRentalsByInventory(ListRentalsByInventoryRequest) returns (ListRentalsResponse);
+  rpc ListOverdueRentals(ListOverdueRentalsRequest) returns (ListRentalsResponse);
+  rpc CreateRental(CreateRentalRequest) returns (Rental);
+  rpc ReturnRental(ReturnRentalRequest) returns (Rental);
+  rpc DeleteRental(DeleteRentalRequest) returns (google.protobuf.Empty);
+}
+
+// InventoryService manages DVD inventory.
+service InventoryService {
+  rpc GetInventory(GetInventoryRequest) returns (Inventory);
+  rpc ListInventory(ListInventoryRequest) returns (ListInventoryResponse);
+  rpc ListInventoryByFilm(ListInventoryByFilmRequest) returns (ListInventoryResponse);
+  rpc ListInventoryByStore(ListInventoryByStoreRequest) returns (ListInventoryResponse);
+  rpc CheckInventoryAvailability(CheckInventoryAvailabilityRequest) returns (CheckInventoryAvailabilityResponse);
+  rpc ListAvailableInventory(ListAvailableInventoryRequest) returns (ListInventoryResponse);
+  rpc CreateInventory(CreateInventoryRequest) returns (Inventory);
+  rpc DeleteInventory(DeleteInventoryRequest) returns (google.protobuf.Empty);
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Rental
+// ---------------------------------------------------------------------------
+
+// Rental represents a rental transaction.
+message Rental {
+  int32 rental_id = 1;
+  google.protobuf.Timestamp rental_date = 2;
+  int32 inventory_id = 3;
+  int32 customer_id = 4;
+  google.protobuf.Timestamp return_date = 5; // null if not yet returned
+  int32 staff_id = 6;
+  google.protobuf.Timestamp last_update = 7;
+}
+
+// RentalDetail is an enriched rental for single-rental views.
+message RentalDetail {
+  Rental rental = 1;
+  string customer_name = 2;
+  string film_title = 3;
+  int32 store_id = 4;
+}
+
+message GetRentalRequest {
+  int32 rental_id = 1;
+}
+
+message ListRentalsRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListRentalsResponse {
+  repeated Rental rentals = 1;
+  int32 total_count = 2;
+}
+
+message ListRentalsByCustomerRequest {
+  int32 customer_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message ListRentalsByInventoryRequest {
+  int32 inventory_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message ListOverdueRentalsRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message CreateRentalRequest {
+  int32 inventory_id = 1;
+  int32 customer_id = 2;
+  int32 staff_id = 3;
+}
+
+message ReturnRentalRequest {
+  int32 rental_id = 1;
+}
+
+message DeleteRentalRequest {
+  int32 rental_id = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Inventory
+// ---------------------------------------------------------------------------
+
+message Inventory {
+  int32 inventory_id = 1;
+  int32 film_id = 2;
+  int32 store_id = 3;
+  google.protobuf.Timestamp last_update = 4;
+}
+
+message GetInventoryRequest {
+  int32 inventory_id = 1;
+}
+
+message ListInventoryRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListInventoryResponse {
+  repeated Inventory items = 1;
+  int32 total_count = 2;
+}
+
+message ListInventoryByFilmRequest {
+  int32 film_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message ListInventoryByStoreRequest {
+  int32 store_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message CheckInventoryAvailabilityRequest {
+  int32 inventory_id = 1;
+}
+
+message CheckInventoryAvailabilityResponse {
+  bool available = 1;
+}
+
+message ListAvailableInventoryRequest {
+  int32 film_id = 1;
+  int32 store_id = 2;
+  int32 page_size = 3;
+  int32 page = 4;
+}
+
+message CreateInventoryRequest {
+  int32 film_id = 1;
+  int32 store_id = 2;
+}
+
+message DeleteInventoryRequest {
+  int32 inventory_id = 1;
+}
