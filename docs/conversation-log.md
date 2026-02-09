@@ -1270,4 +1270,223 @@ sql/queries/customer/
 
 ---
 
-*状态：Customer Service 实施完成 —— 准备实施下一个微服务（rental-service 或 payment-service）*
+*状态：Customer Service 实施完成*
+
+---
+
+### 阶段 5：Rental Service 实施
+
+**用户**：继续下一个服务的实装。
+
+**助手**：选择 rental-service 作为第四个实现的微服务。原因：payment-service 依赖 rental（payment 表 FK 引用 rental），需先完成 rental-service。管理 `rental` 和 `inventory` 两张表，涉及库存可用性检查、归还逻辑、跨表数据聚合等中等复杂度的业务场景。
+
+#### 关键设计决策
+
+1. **两个 gRPC 服务在一个 proto 文件中**：RentalService（核心，8 RPCs）、InventoryService（8 RPCs），同一进程端口 50054
+2. **GetRental 返回 RentalDetail**：聚合 rental + customer name + film title + store_id，减少 BFF 调用轮次
+3. **ReturnRental 替代 UpdateRental**：归还是 rental 唯一的状态变更操作，语义更明确
+4. **CreateRental 验证库存可用性**：先检查 inventory 是否存在，再检查是否已被借出（`return_date IS NULL`）
+5. **跨表查询用 SQL 而非跨服务 gRPC**：GetCustomerName、GetFilmTitleByInventory 直接查同一数据库的 customer/film 表，避免引入服务间依赖
+6. **return_date 为 NULL 表示未归还**：DB NULL → pgtype.Timestamptz{Valid:false} → Go time.Time 零值 → proto nil Timestamp（handler 层 IsZero 判断）
+7. **ReturnRental 防重复归还**：SQL `WHERE return_date IS NULL` 条件，已归还的 rental 返回 ErrNotFound
+8. **sqlc interface{} 处理**：`first_name || ' ' || last_name` 拼接表达式 sqlc 映射为 `interface{}`，repository 层用类型断言处理
+9. **ListOverdueRentals**：查询 `return_date IS NULL` 的所有租赁记录（未归还 = 逾期）
+10. **InventoryService 只读 + Create/Delete**：无 UpdateInventory（库存项无需修改，只有增删）
+11. **ListAvailableInventory**：按 film_id + store_id 过滤，用 `NOT EXISTS` 子查询排除已借出的库存
+12. **CheckInventoryAvailability**：验证库存存在后检查可用性，返回 bool
+
+#### Step 1：Proto 定义 + SQL 查询 + 工具配置
+
+**新增文件：**
+
+1. **`proto/rental/v1/rental.proto`** — 两个 gRPC 服务定义
+   - `RentalService`：GetRental、ListRentals、ListRentalsByCustomer、ListRentalsByInventory、ListOverdueRentals、CreateRental、ReturnRental、DeleteRental（8 RPCs）
+   - `InventoryService`：GetInventory、ListInventory、ListInventoryByFilm、ListInventoryByStore、CheckInventoryAvailability、ListAvailableInventory、CreateInventory、DeleteInventory（8 RPCs）
+   - 消息类型：Rental（return_date 可选）、RentalDetail（含 customer_name/film_title/store_id）、Inventory
+
+2. **`sql/queries/rental/rental.sql`** — 15 个查询
+   - Get/List/Count（基础 CRUD）
+   - ListRentalsByCustomer / CountRentalsByCustomer（按客户过滤）
+   - ListRentalsByInventory / CountRentalsByInventory（按库存过滤）
+   - ListOverdueRentals / CountOverdueRentals（`return_date IS NULL`）
+   - CreateRental（`rental_date = now()`）
+   - ReturnRental（`return_date = now() WHERE return_date IS NULL`，RETURNING *）
+   - DeleteRental
+   - GetCustomerName（`first_name || ' ' || last_name`，跨表查询 customer）
+   - GetFilmTitleByInventory（JOIN inventory + film，返回 title + store_id）
+   - IsInventoryAvailable（`NOT EXISTS` 子查询检查未归还租赁）
+
+3. **`sql/queries/rental/inventory.sql`** — 11 个查询
+   - Get/List/Count（基础 CRUD）
+   - ListInventoryByFilm / CountInventoryByFilm（按影片过滤）
+   - ListInventoryByStore / CountInventoryByStore（按门店过滤）
+   - ListAvailableInventory / CountAvailableInventory（按 film_id + store_id + NOT EXISTS 过滤）
+   - CreateInventory / DeleteInventory（无 Update）
+
+**修改文件：**
+- `sqlc.yaml` — 新增 rental sql block（第四个 sql block）
+- `Makefile` — 添加 `run-rental` target
+
+#### Step 2：运行代码生成
+
+- `make proto-gen` → `gen/proto/rental/v1/rental.pb.go` + `rental_grpc.pb.go`
+- `make sqlc-gen` → `internal/rental/repository/sqlcgen/` 下 4 个文件（db.go, models.go, rental.sql.go, inventory.sql.go）
+- sqlcgen 模型：Rental 用 `pgtype.Timestamptz`（RentalDate, ReturnDate, LastUpdate）；GetCustomerName 返回 `interface{}`
+- 验证 store-service、film-service、customer-service 编译不受影响
+
+#### Step 3：Repository 层
+
+**新增文件：**
+
+1. **`internal/rental/model/model.go`** — 领域模型
+   - `Rental`：RentalID, RentalDate(time.Time), InventoryID, CustomerID, ReturnDate(time.Time, 零值=未归还), StaffID, LastUpdate
+   - `RentalDetail`：嵌入 Rental + CustomerName, FilmTitle, StoreID
+   - `Inventory`：InventoryID, FilmID, StoreID, LastUpdate
+
+2. **`internal/rental/repository/helpers.go`** — 仅 `timestamptzToTime`（比 customer 更简单，无 Date/Text 类型）
+
+3. **`internal/rental/repository/rental_repository.go`**
+   - 接口 `RentalRepository`（15 个方法）
+   - `CreateRentalParams` 参数结构体（InventoryID, CustomerID, StaffID）
+   - `GetCustomerName`：处理 sqlc 的 `interface{}` 返回，用 `val.(string)` 类型断言
+   - `GetFilmTitleByInventory`：返回 (string, int32, error) — title 和 store_id
+   - `ReturnRental`：pgx.ErrNoRows → ErrNotFound（覆盖"不存在"和"已归还"两种情况）
+   - `toRentalModel` / `toRentalModels` 辅助函数
+
+4. **`internal/rental/repository/inventory_repository.go`**
+   - 接口 `InventoryRepository`（11 个方法）
+   - `CreateInventoryParams` 参数结构体（FilmID, StoreID）
+   - 无 Update 方法
+   - `toInventoryModel` / `toInventoryModels` 辅助函数
+
+#### Step 4：Service 层
+
+**新增文件：**
+
+1. **`internal/rental/service/errors.go`** — 四个哨兵错误（同前三个服务模式）
+
+2. **`internal/rental/service/pgutil.go`** — isUniqueViolation + isForeignKeyViolation
+
+3. **`internal/rental/service/pagination.go`** — clampPagination
+
+4. **`internal/rental/service/rental_service.go`**
+   - `RentalService` 持有 rentalRepo + inventoryRepo
+   - GetRental：获取 rental 后聚合 customer name（GetCustomerName）+ film title & store_id（GetFilmTitleByInventory）→ RentalDetail
+   - CreateRental：校验 inventory_id/customer_id/staff_id > 0 → 验证 inventory 存在 → 检查库存可用性（IsInventoryAvailable）→ 创建 rental
+   - ReturnRental：ErrNotFound 消息为"not found or already returned"
+   - DeleteRental：先验证存在，FK 违约 → ErrForeignKey（被 payment 引用）
+   - 五种列表查询：ListRentals, ListRentalsByCustomer, ListRentalsByInventory, ListOverdueRentals（各带分页和总数）
+
+5. **`internal/rental/service/inventory_service.go`**
+   - `InventoryService` 持有 inventoryRepo + rentalRepo
+   - CheckInventoryAvailability：先验证 inventory 存在，再调用 IsInventoryAvailable
+   - ListAvailableInventory：校验 film_id + store_id > 0
+   - CreateInventory：校验 film_id + store_id > 0，FK 违约 → ErrInvalidArgument
+   - DeleteInventory：先验证存在，FK 违约 → ErrForeignKey（被 rental 引用）
+   - 三种列表查询：ListInventory, ListInventoryByFilm, ListInventoryByStore
+
+#### Step 5：Handler 层
+
+**新增文件：**
+
+1. **`internal/rental/handler/convert.go`**
+   - `toGRPCError()`：同前三个服务模式
+   - `rentalToProto()`：return_date 零值判断（`!r.ReturnDate.IsZero()` → 设置 proto Timestamp，否则 nil）
+   - `rentalDetailToProto()` / `inventoryToProto()`
+
+2. **`internal/rental/handler/rental_handler.go`** — 8 个 RPC 实现 + `toRentalListResponse()` 辅助
+
+3. **`internal/rental/handler/inventory_handler.go`** — 8 个 RPC 实现 + `toInventoryListResponse()` 辅助
+
+#### Step 6：Main 入口 + 配置
+
+**新增文件：**
+
+1. **`internal/rental/config/config.go`** — DATABASE_URL（必填）, GRPC_PORT（默认 "50054"）, LOG_LEVEL
+
+2. **`cmd/rental-service/main.go`**
+   - 依赖注入：2 repo → 2 service（交叉注入：RentalService 用两个 repo，InventoryService 也用两个 repo）→ 2 handler
+   - gRPC server 注册 2 个服务
+   - Health check 注册 2 个服务状态
+   - Reflection + graceful shutdown
+
+**Git 提交**：`feat(rental-service): implement rental and inventory gRPC services`
+
+#### 与前三个服务的对比
+
+| 维度 | store-service | film-service | customer-service | rental-service |
+|------|-------------|-------------|-----------------|---------------|
+| 表数量 | 2 | 6（含 2 关联表） | 4 | 2 |
+| gRPC 服务数 | 2 | 4 | 4 | 2 |
+| RPC 总数 | 13 | 22 | 15 | 16 |
+| Repository 方法数 | 20 | 31 | 20 | 26（15+11） |
+| 数据聚合 | 无 | 扇出式 | 链式 | 扇出式（跨表 SQL） |
+| 特殊业务逻辑 | soft delete | 全文搜索、多对多 | 双字段同步 | 库存可用性、归还逻辑 |
+| 跨表查询 | 无 | 无 | 无 | 有（GetCustomerName, GetFilmTitleByInventory） |
+| 特殊类型处理 | 无 | ENUM, DOMAIN, ARRAY, Numeric | boolToActive | interface{} 类型断言 |
+
+#### Rental Service 文件清单
+
+```
+cmd/rental-service/
+└── main.go                              # 服务入口、依赖注入、graceful shutdown
+
+internal/rental/
+├── config/
+│   └── config.go                        # 环境变量配置（端口默认 50054）
+├── handler/
+│   ├── convert.go                       # proto ↔ 领域模型转换、错误映射
+│   ├── rental_handler.go                # RentalService gRPC 实现（8 RPCs）
+│   └── inventory_handler.go             # InventoryService gRPC 实现（8 RPCs）
+├── model/
+│   └── model.go                         # Rental, RentalDetail, Inventory
+├── repository/
+│   ├── rental_repository.go             # RentalRepository 接口 + pgx 实现（15 方法）
+│   ├── inventory_repository.go          # InventoryRepository 接口 + pgx 实现（11 方法）
+│   ├── helpers.go                       # pgtype 转换辅助（timestamptzToTime）
+│   └── sqlcgen/                         # sqlc 自动生成（勿手动修改）
+│       ├── db.go
+│       ├── models.go
+│       ├── rental.sql.go
+│       └── inventory.sql.go
+└── service/
+    ├── errors.go                        # ErrNotFound, ErrInvalidArgument, ErrAlreadyExists, ErrForeignKey
+    ├── pgutil.go                        # isUniqueViolation + isForeignKeyViolation
+    ├── pagination.go                    # clampPagination
+    ├── rental_service.go                # Rental 业务逻辑（含库存可用性检查 + 跨表聚合）
+    └── inventory_service.go             # Inventory 业务逻辑（含可用性查询）
+
+proto/rental/v1/
+└── rental.proto                         # 2 个 gRPC 服务定义
+
+gen/proto/rental/v1/
+├── rental.pb.go                         # protobuf 生成代码
+└── rental_grpc.pb.go                    # gRPC 生成代码
+
+sql/queries/rental/
+├── rental.sql                           # Rental 表查询（含跨表查询 + 归还逻辑）
+└── inventory.sql                        # Inventory 表查询（含可用库存过滤）
+```
+
+#### 新增可复用模式（相比前三个服务）
+
+1. **跨表 SQL 查询**：同一数据库内的跨服务数据查询（GetCustomerName, GetFilmTitleByInventory），避免引入 gRPC 服务间依赖
+2. **可空时间戳处理**：DB NULL → Go 零值 → proto nil 的完整管道（handler 层 `IsZero()` 判断）
+3. **sqlc interface{} 类型断言**：SQL 表达式（如字符串拼接）生成 `interface{}` 时，在 repository 层用类型断言安全转换
+4. **业务状态操作替代通用更新**：ReturnRental（语义明确）替代 UpdateRental（通用但模糊）
+5. **可用性检查模式**：`NOT EXISTS (SELECT 1 FROM rental WHERE ... AND return_date IS NULL)` 用于库存可用性判断
+6. **服务交叉注入**：RentalService 和 InventoryService 都需要对方的 repo（RentalService 需要 inventoryRepo 验证库存存在，InventoryService 需要 rentalRepo 检查可用性）
+
+#### 服务端口汇总
+
+| 服务 | 端口 | 状态 |
+|------|------|------|
+| store-service | 50051 | 已完成 |
+| film-service | 50052 | 已完成 |
+| customer-service | 50053 | 已完成 |
+| rental-service | 50054 | 已完成 |
+| payment-service | 50055 | 待实现 |
+
+---
+
+*状态：Rental Service 实施完成 —— 准备实施最后一个核心微服务（payment-service）*
