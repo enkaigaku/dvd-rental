@@ -23,10 +23,10 @@ type ClientConfig struct {
 func DefaultClientConfig(address string) ClientConfig {
 	return ClientConfig{
 		Address:          address,
-		MaxRecvMsgSize:   4 * 1024 * 1024, // 4MB
-		MaxSendMsgSize:   4 * 1024 * 1024, // 4MB
-		KeepaliveTime:    30 * time.Second,
-		KeepaliveTimeout: 10 * time.Second,
+		MaxRecvMsgSize:   4 * 1024 * 1024,  // 4MB
+		MaxSendMsgSize:   4 * 1024 * 1024,  // 4MB
+		KeepaliveTime:    5 * time.Minute,  // Match gRPC server default minimum
+		KeepaliveTimeout: 20 * time.Second, // Timeout for ping response
 	}
 }
 
@@ -41,7 +41,7 @@ func Dial(cfg ClientConfig) (*grpc.ClientConn, error) {
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time:                cfg.KeepaliveTime,
 			Timeout:             cfg.KeepaliveTimeout,
-			PermitWithoutStream: true,
+			PermitWithoutStream: false, // Only ping when there are active streams
 		}),
 	)
 	if err != nil {
