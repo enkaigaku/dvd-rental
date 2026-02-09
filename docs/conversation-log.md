@@ -799,3 +799,255 @@ sql/queries/
 ---
 
 *状态：Store Service 实施完成 —— 准备实施下一个微服务*
+
+---
+
+### 阶段 3：Film Service 实施
+
+**用户**：下一个服务选 film-service，直接完成全部 6 个 step，中途无需确认。
+
+**助手**：选择影片服务（film-service）作为第二个实现的微服务。原因：涉及 6 张表（film, actor, category, language, film_actor, film_category），包含多对多关系、全文搜索、自定义 ENUM/DOMAIN 等复杂场景，能建立更丰富的模式参考。后续 rental-service 和 BFF 层都依赖 film-service。
+
+#### 前置变更：sqlc 查询目录重组
+
+原有 `sqlc.yaml` 的 `queries: "sql/queries"` 会递归扫描子目录，无法按服务隔离。重组方案：
+
+- `sql/queries/store.sql` → `sql/queries/store/store.sql`
+- `sql/queries/staff.sql` → `sql/queries/store/staff.sql`
+- 新建 `sql/queries/film/` 放 film 相关查询
+- `sqlc.yaml` 拆分为两个 sql block，分别输出到各自的 sqlcgen 目录
+
+#### 关键设计决策
+
+1. **四个 gRPC 服务在一个 proto 文件中**：FilmService（核心，12 RPCs）、ActorService（6 RPCs）、CategoryService（只读，2 RPCs）、LanguageService（只读，2 RPCs）
+2. **GetFilm 返回 FilmDetail**：包含 actors、categories、language 名称，减少 BFF 调用轮次
+3. **多对多关联操作归 FilmService**：AddActorToFilm / RemoveActorFromFilm / AddCategoryToFilm / RemoveCategoryFromFilm
+4. **货币字段用 string**：rental_rate、replacement_cost 用 string 避免浮点精度问题（pgtype.Numeric ↔ string）
+5. **mpaa_rating ENUM → string**：service 层校验合法值 {"G","PG","PG-13","R","NC-17"}
+6. **全文搜索用 plainto_tsquery**：安全处理用户输入，按相关度排序
+7. **DeleteFilm 保留但处理 FK 约束**：inventory 表 FK RESTRICT，违约时映射为 FailedPrecondition
+8. **新增 ErrForeignKey 哨兵错误**：映射到 gRPC codes.FailedPrecondition
+9. **language.name 需 trim**：character(20) 列有空格填充，repository 层 strings.TrimRight
+10. **默认端口 50052**：与 store-service 的 50051 区分
+
+#### Step 1：Proto 定义 + SQL 查询 + 工具配置
+
+**新增文件：**
+
+1. **`proto/film/v1/film.proto`** — 四个 gRPC 服务定义
+   - `FilmService`：GetFilm、ListFilms、SearchFilms、ListFilmsByCategory、ListFilmsByActor、CreateFilm、UpdateFilm、DeleteFilm、AddActorToFilm、RemoveActorFromFilm、AddCategoryToFilm、RemoveCategoryFromFilm
+   - `ActorService`：GetActor、ListActors、ListActorsByFilm、CreateActor、UpdateActor、DeleteActor
+   - `CategoryService`：GetCategory、ListCategories
+   - `LanguageService`：GetLanguage、ListLanguages
+   - 消息类型：Film（列表用）、FilmDetail（含 actors/categories/language_name）、Actor、Category、Language
+
+2. **`sql/queries/film/films.sql`** — 13 个查询
+   - Get/List/Count（基础 CRUD）
+   - SearchFilms / CountSearchFilms（全文搜索，plainto_tsquery + ts_rank）
+   - ListFilmsByCategory / CountFilmsByCategory（按分类过滤）
+   - ListFilmsByActor / CountFilmsByActor（按演员过滤）
+   - CreateFilm / UpdateFilm / DeleteFilm
+
+3. **`sql/queries/film/actor.sql`** — 7 个查询（Get/List/Count/ListByFilm/Create/Update/Delete）
+
+4. **`sql/queries/film/category.sql`** — 4 个查询（Get/List/Count/ListByFilm，只读）
+
+5. **`sql/queries/film/language.sql`** — 3 个查询（Get/List/Count，只读）
+
+6. **`sql/queries/film/film_actor.sql`** — 2 个（Add/Remove）
+
+7. **`sql/queries/film/film_category.sql`** — 2 个（Add/Remove）
+
+**移动文件：**
+- `sql/queries/store.sql` → `sql/queries/store/store.sql`
+- `sql/queries/staff.sql` → `sql/queries/store/staff.sql`
+
+**修改文件：**
+- `sqlc.yaml` — 拆分为 store + film 两个 sql block
+- `Makefile` — 添加 `run-film` target
+
+#### Step 2：运行代码生成
+
+- `make proto-gen` → `gen/proto/film/v1/film.pb.go` + `film_grpc.pb.go`
+- `make sqlc-gen` → `internal/film/repository/sqlcgen/` 下 8 个文件（db.go, models.go, films.sql.go, actor.sql.go, category.sql.go, language.sql.go, film_actor.sql.go, film_category.sql.go）
+- 验证 store-service 编译不受影响
+
+#### Step 3：Repository 层
+
+**新增文件：**
+
+1. **`internal/film/model/model.go`** — 领域模型
+   - `Film`：FilmID, Title, Description, ReleaseYear(int32), LanguageID, OriginalLanguageID, RentalDuration(int16), RentalRate(string), Length(int16), ReplacementCost(string), Rating(string), SpecialFeatures([]string), LastUpdate
+   - `FilmDetail`：嵌入 Film + LanguageName, OriginalLanguageName, Actors, Categories
+   - `Actor`：ActorID, FirstName, LastName, LastUpdate
+   - `Category`：CategoryID, Name, LastUpdate
+   - `Language`：LanguageID, Name(trimmed), LastUpdate
+
+2. **`internal/film/repository/helpers.go`** — 类型转换辅助函数
+   - `textToString` / `stringToText`（pgtype.Text ↔ string）
+   - `numericToString` / `stringToNumeric`（pgtype.Numeric ↔ string，使用 big.Float 精确转换）
+   - `int4ToInt32` / `int32ToInt4`、`int2ToInt16` / `int16ToInt2`（nullable 整数）
+   - `yearToInt32`（interface{} → int32，处理 year domain 的类型断言）
+   - `ratingToString` / `stringToRating`（NullMpaaRating ↔ string）
+   - `trimLanguageName`（去除 character(20) 的空格填充）
+   - `filmFields` + `convertFilmFields` + `filmConvertedFields`（统一 film 行类型转换）
+
+3. **`internal/film/repository/film_repository.go`**
+   - 接口 `FilmRepository`（17 个方法）
+   - `CreateFilmParams` / `UpdateFilmParams` 参数结构体
+   - 7 个行转换函数（filmFromGetRow, filmFromCreateRow, filmFromUpdateRow, filmsFromListRows, filmsFromSearchRows, filmsFromCategoryRows, filmsFromActorRows）
+
+4. **`internal/film/repository/actor_repository.go`** — 接口 `ActorRepository`（7 个方法）
+
+5. **`internal/film/repository/category_repository.go`** — 接口 `CategoryRepository`（4 个方法，只读）
+
+6. **`internal/film/repository/language_repository.go`** — 接口 `LanguageRepository`（3 个方法，只读，含 name trim）
+
+#### Step 4：Service 层
+
+**新增文件：**
+
+1. **`internal/film/service/errors.go`** — 四个哨兵错误
+   - `ErrNotFound`、`ErrInvalidArgument`、`ErrAlreadyExists`、`ErrForeignKey`（新增）
+
+2. **`internal/film/service/pgutil.go`**
+   - `isUniqueViolation()` — PG 错误码 23505
+   - `isForeignKeyViolation()` — PG 错误码 23503（新增，用于 DeleteFilm/DeleteActor）
+
+3. **`internal/film/service/pagination.go`** — clampPagination（同 store-service 模式）
+
+4. **`internal/film/service/film_service.go`**
+   - `FilmService` 持有全部 4 个 repo（filmRepo, actorRepo, categoryRepo, languageRepo）
+   - GetFilm：获取 film 后聚合 language name、actors（ListActorsByFilm）、categories（ListCategoriesByFilm）
+   - CreateFilm/UpdateFilm：调用 `validateFilmParams()` 校验 title 非空、language 存在、rating 合法、rental_rate/replacement_cost 为合法数值
+   - DeleteFilm：FK 违约 → ErrForeignKey
+   - AddActorToFilm/AddCategoryToFilm：验证双方存在，唯一约束冲突 → ErrAlreadyExists
+
+5. **`internal/film/service/actor_service.go`** — CRUD + ListByFilm + DeleteActor（FK → ErrForeignKey）
+
+6. **`internal/film/service/category_service.go`** — GetCategory + ListCategories（只读）
+
+7. **`internal/film/service/language_service.go`** — GetLanguage + ListLanguages（只读）
+
+#### Step 5：Handler 层
+
+**新增文件：**
+
+1. **`internal/film/handler/convert.go`**
+   - `toGRPCError()`：新增 ErrForeignKey → codes.FailedPrecondition 映射
+   - `filmToProto()` / `filmDetailToProto()` / `actorToProto()` / `categoryToProto()` / `languageToProto()`
+
+2. **`internal/film/handler/film_handler.go`** — 12 个 RPC 实现 + `toFilmListResponse()` 辅助
+
+3. **`internal/film/handler/actor_handler.go`** — 6 个 RPC 实现 + `toActorListResponse()` 辅助
+
+4. **`internal/film/handler/category_handler.go`** — 2 个 RPC 实现
+
+5. **`internal/film/handler/language_handler.go`** — 2 个 RPC 实现
+
+#### Step 6：Main 入口 + 配置
+
+**新增文件：**
+
+1. **`internal/film/config/config.go`** — DATABASE_URL（必填）, GRPC_PORT（默认 "50052"）, LOG_LEVEL
+
+2. **`cmd/film-service/main.go`**
+   - 依赖注入：4 repo → 4 service → 4 handler
+   - gRPC server 注册 4 个服务
+   - Health check 注册 4 个服务状态
+   - Reflection + graceful shutdown
+
+**修改文件：**
+- `.gitignore` — 二进制名改为根目录锚定（`/film-service` 而非 `film-service`），避免匹配 `cmd/film-service/` 目录
+
+**Git 提交**：`feat(film): add film-service with gRPC APIs for films, actors, categories, and languages`
+
+#### 遇到的问题及解决
+
+1. **sqlc 静默跳过 `film.sql`**：文件名与 `film` 表名冲突，sqlc 不报错但不生成代码。改名为 `films.sql` 后解决
+2. **helpers.go 类型错误**：`filmConvertedFields.LastUpdate` 误定义为 `fmt.Stringer`，应为 `time.Time`，编译时发现并修复
+3. **`.gitignore` 匹配过宽**：`film-service`（无前缀 `/`）匹配了 `cmd/film-service/` 目录，导致 main.go 无法 git add。改为 `/film-service`（根目录锚定）解决。同时修复了所有 7 个服务二进制名
+
+#### Film Service 文件清单
+
+```
+cmd/film-service/
+└── main.go                              # 服务入口、依赖注入、graceful shutdown
+
+internal/film/
+├── config/
+│   └── config.go                        # 环境变量配置（端口默认 50052）
+├── handler/
+│   ├── convert.go                       # proto ↔ 领域模型转换、错误映射
+│   ├── film_handler.go                  # FilmService gRPC 实现（12 RPCs）
+│   ├── actor_handler.go                 # ActorService gRPC 实现（6 RPCs）
+│   ├── category_handler.go              # CategoryService gRPC 实现（2 RPCs）
+│   └── language_handler.go              # LanguageService gRPC 实现（2 RPCs）
+├── model/
+│   └── model.go                         # Film, FilmDetail, Actor, Category, Language
+├── repository/
+│   ├── film_repository.go               # FilmRepository 接口 + pgx 实现（17 方法）
+│   ├── actor_repository.go              # ActorRepository 接口 + pgx 实现（7 方法）
+│   ├── category_repository.go           # CategoryRepository 接口（只读，4 方法）
+│   ├── language_repository.go           # LanguageRepository 接口（只读，3 方法）
+│   ├── helpers.go                       # pgtype 转换辅助（numeric, rating, year, text 等）
+│   └── sqlcgen/                         # sqlc 自动生成（勿手动修改）
+│       ├── db.go
+│       ├── models.go
+│       ├── films.sql.go
+│       ├── actor.sql.go
+│       ├── category.sql.go
+│       ├── language.sql.go
+│       ├── film_actor.sql.go
+│       └── film_category.sql.go
+└── service/
+    ├── errors.go                        # ErrNotFound, ErrInvalidArgument, ErrAlreadyExists, ErrForeignKey
+    ├── pgutil.go                        # isUniqueViolation + isForeignKeyViolation
+    ├── pagination.go                    # clampPagination
+    ├── film_service.go                  # Film 业务逻辑（含数据聚合 + 校验）
+    ├── actor_service.go                 # Actor 业务逻辑
+    ├── category_service.go              # Category 业务逻辑（只读）
+    └── language_service.go              # Language 业务逻辑（只读）
+
+proto/film/v1/
+└── film.proto                           # 4 个 gRPC 服务定义
+
+gen/proto/film/v1/
+├── film.pb.go                           # protobuf 生成代码
+└── film_grpc.pb.go                      # gRPC 生成代码
+
+sql/queries/film/
+├── films.sql                            # Film 表查询（含全文搜索）
+├── actor.sql                            # Actor 表查询
+├── category.sql                         # Category 表查询（只读）
+├── language.sql                         # Language 表查询（只读）
+├── film_actor.sql                       # 关联表 Add/Remove
+└── film_category.sql                    # 关联表 Add/Remove
+```
+
+#### 新增可复用模式（相比 store-service）
+
+1. **多对多关联管理**：junction table 的 Add/Remove 操作归主实体 Service，校验双方存在后操作
+2. **数据聚合模式**：GetFilm 在 service 层聚合多个 repo 查询结果（film + language + actors + categories）→ FilmDetail
+3. **特殊类型转换集中化**：helpers.go 封装所有 pgtype ↔ Go 标准类型转换，包括 numeric(金额)、ENUM、DOMAIN、ARRAY
+4. **ErrForeignKey 错误体系**：新增 FK 违约哨兵错误 → gRPC FailedPrecondition，用于 Delete 操作
+5. **全文搜索模式**：plainto_tsquery + ts_rank 排序，Count 变体用于分页
+6. **sqlc 多服务目录结构**：sql/queries/{service}/ 子目录 + sqlc.yaml 多 sql block
+
+#### 特殊类型处理总结
+
+| DB 类型 | sqlc 生成类型 | Go 模型类型 | 转换方式 |
+|---------|-------------|------------|---------|
+| mpaa_rating ENUM | NullMpaaRating | string | ratingToString / stringToRating |
+| year DOMAIN | interface{} | int32 | yearToInt32（类型断言） |
+| text[] ARRAY | []string | []string | 直接映射 |
+| numeric(4,2) | pgtype.Numeric | string | numericToString / stringToNumeric（big.Float） |
+| tsvector | interface{} | 不暴露 | 仅在 SQL 查询中使用 |
+| character(20) | string | string | trimLanguageName（TrimRight 空格） |
+| text (nullable) | pgtype.Text | string | textToString / stringToText |
+| int4 (nullable) | pgtype.Int4 | int32 | int4ToInt32 / int32ToInt4（0=NULL） |
+| int2 (nullable) | pgtype.Int2 | int16 | int2ToInt16 / int16ToInt2（0=NULL） |
+
+---
+
+*状态：Film Service 实施完成 —— 准备实施下一个微服务*
