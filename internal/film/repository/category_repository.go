@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tokyoyuan/dvd-rental/internal/film/model"
-	"github.com/tokyoyuan/dvd-rental/internal/film/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/internal/film/model"
+	"github.com/enkaigaku/dvd-rental/internal/film/repository/sqlcgen"
 )
 
 // CategoryRepository defines the read-only data access interface for categories.

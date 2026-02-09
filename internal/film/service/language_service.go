@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tokyoyuan/dvd-rental/internal/film/model"
-	"github.com/tokyoyuan/dvd-rental/internal/film/repository"
+	"github.com/enkaigaku/dvd-rental/internal/film/model"
+	"github.com/enkaigaku/dvd-rental/internal/film/repository"
 )
 
 // LanguageService contains business logic for language operations (read-only).

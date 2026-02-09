@@ -3,9 +3,9 @@ package handler
 import (
 	"context"
 
-	filmv1 "github.com/tokyoyuan/dvd-rental/gen/proto/film/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/film/model"
-	"github.com/tokyoyuan/dvd-rental/internal/film/service"
+	filmv1 "github.com/enkaigaku/dvd-rental/gen/proto/film/v1"
+	"github.com/enkaigaku/dvd-rental/internal/film/model"
+	"github.com/enkaigaku/dvd-rental/internal/film/service"
 )
 
 // LanguageHandler implements the LanguageService gRPC interface.

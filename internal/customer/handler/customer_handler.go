@@ -5,10 +5,10 @@ import (
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	customerv1 "github.com/tokyoyuan/dvd-rental/gen/proto/customer/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/customer/model"
-	"github.com/tokyoyuan/dvd-rental/internal/customer/repository"
-	"github.com/tokyoyuan/dvd-rental/internal/customer/service"
+	customerv1 "github.com/enkaigaku/dvd-rental/gen/proto/customer/v1"
+	"github.com/enkaigaku/dvd-rental/internal/customer/model"
+	"github.com/enkaigaku/dvd-rental/internal/customer/repository"
+	"github.com/enkaigaku/dvd-rental/internal/customer/service"
 )
 
 // CustomerHandler implements the CustomerService gRPC server.

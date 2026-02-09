@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	storev1 "github.com/tokyoyuan/dvd-rental/gen/proto/store/v1"
+	storev1 "github.com/enkaigaku/dvd-rental/gen/proto/store/v1"
 )
 
 // StoreHandler handles store management endpoints.

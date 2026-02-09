@@ -754,7 +754,7 @@ const file_payment_v1_payment_proto_rawDesc = "" +
 	"\x14ListPaymentsByRental\x12'.payment.v1.ListPaymentsByRentalRequest\x1a .payment.v1.ListPaymentsResponse\x12g\n" +
 	"\x17ListPaymentsByDateRange\x12*.payment.v1.ListPaymentsByDateRangeRequest\x1a .payment.v1.ListPaymentsResponse\x12F\n" +
 	"\rCreatePayment\x12 .payment.v1.CreatePaymentRequest\x1a\x13.payment.v1.Payment\x12I\n" +
-	"\rDeletePayment\x12 .payment.v1.DeletePaymentRequest\x1a\x16.google.protobuf.EmptyB@Z>github.com/tokyoyuan/dvd-rental/gen/proto/payment/v1;paymentv1b\x06proto3"
+	"\rDeletePayment\x12 .payment.v1.DeletePaymentRequest\x1a\x16.google.protobuf.EmptyB@Z>github.com/enkaigaku/dvd-rental/gen/proto/payment/v1;paymentv1b\x06proto3"
 
 var (
 	file_payment_v1_payment_proto_rawDescOnce sync.Once

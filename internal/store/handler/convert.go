@@ -8,9 +8,9 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	storev1 "github.com/tokyoyuan/dvd-rental/gen/proto/store/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/store/model"
-	"github.com/tokyoyuan/dvd-rental/internal/store/service"
+	storev1 "github.com/enkaigaku/dvd-rental/gen/proto/store/v1"
+	"github.com/enkaigaku/dvd-rental/internal/store/model"
+	"github.com/enkaigaku/dvd-rental/internal/store/service"
 )
 
 // toGRPCError maps service-layer sentinel errors to gRPC status errors.

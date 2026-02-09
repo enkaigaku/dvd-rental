@@ -7,10 +7,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	paymentv1 "github.com/tokyoyuan/dvd-rental/gen/proto/payment/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/payment/model"
-	"github.com/tokyoyuan/dvd-rental/internal/payment/repository"
-	"github.com/tokyoyuan/dvd-rental/internal/payment/service"
+	paymentv1 "github.com/enkaigaku/dvd-rental/gen/proto/payment/v1"
+	"github.com/enkaigaku/dvd-rental/internal/payment/model"
+	"github.com/enkaigaku/dvd-rental/internal/payment/repository"
+	"github.com/enkaigaku/dvd-rental/internal/payment/service"
 )
 
 // PaymentHandler implements the PaymentService gRPC server.

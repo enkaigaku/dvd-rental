@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/tokyoyuan/dvd-rental/pkg/auth"
+	"github.com/enkaigaku/dvd-rental/pkg/auth"
 )
 
 // ContextKey is the type for context keys used by middleware.

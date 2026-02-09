@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tokyoyuan/dvd-rental/internal/film/model"
-	"github.com/tokyoyuan/dvd-rental/internal/film/repository"
+	"github.com/enkaigaku/dvd-rental/internal/film/model"
+	"github.com/enkaigaku/dvd-rental/internal/film/repository"
 )
 
 // CategoryService contains business logic for category operations (read-only).

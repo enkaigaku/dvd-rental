@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/tokyoyuan/dvd-rental/internal/film/model"
-	"github.com/tokyoyuan/dvd-rental/internal/film/repository"
+	"github.com/enkaigaku/dvd-rental/internal/film/model"
+	"github.com/enkaigaku/dvd-rental/internal/film/repository"
 )
 
 var validRatings = map[string]bool{

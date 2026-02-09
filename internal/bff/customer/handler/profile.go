@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	customerv1 "github.com/tokyoyuan/dvd-rental/gen/proto/customer/v1"
-	"github.com/tokyoyuan/dvd-rental/pkg/middleware"
+	customerv1 "github.com/enkaigaku/dvd-rental/gen/proto/customer/v1"
+	"github.com/enkaigaku/dvd-rental/pkg/middleware"
 )
 
 // ProfileHandler handles customer profile endpoints (all require auth).

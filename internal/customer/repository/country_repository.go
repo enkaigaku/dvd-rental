@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tokyoyuan/dvd-rental/internal/customer/model"
-	"github.com/tokyoyuan/dvd-rental/internal/customer/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/internal/customer/model"
+	"github.com/enkaigaku/dvd-rental/internal/customer/repository/sqlcgen"
 )
 
 // CountryRepository defines read-only data-access operations for countries.

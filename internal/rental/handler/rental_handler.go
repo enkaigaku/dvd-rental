@@ -5,10 +5,10 @@ import (
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	rentalv1 "github.com/tokyoyuan/dvd-rental/gen/proto/rental/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/rental/model"
-	"github.com/tokyoyuan/dvd-rental/internal/rental/repository"
-	"github.com/tokyoyuan/dvd-rental/internal/rental/service"
+	rentalv1 "github.com/enkaigaku/dvd-rental/gen/proto/rental/v1"
+	"github.com/enkaigaku/dvd-rental/internal/rental/model"
+	"github.com/enkaigaku/dvd-rental/internal/rental/repository"
+	"github.com/enkaigaku/dvd-rental/internal/rental/service"
 )
 
 // RentalHandler implements the RentalService gRPC server.

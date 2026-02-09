@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	filmv1 "github.com/tokyoyuan/dvd-rental/gen/proto/film/v1"
-	"github.com/tokyoyuan/dvd-rental/pkg/middleware"
+	filmv1 "github.com/enkaigaku/dvd-rental/gen/proto/film/v1"
+	"github.com/enkaigaku/dvd-rental/pkg/middleware"
 )
 
 // FilmHandler handles film catalog endpoints (all public, read-only).

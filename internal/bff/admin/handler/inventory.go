@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	rentalv1 "github.com/tokyoyuan/dvd-rental/gen/proto/rental/v1"
+	rentalv1 "github.com/enkaigaku/dvd-rental/gen/proto/rental/v1"
 )
 
 // InventoryHandler handles inventory management endpoints.

@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tokyoyuan/dvd-rental/internal/film/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/internal/film/repository/sqlcgen"
 )
 
 // ErrNotFound is returned when a requested record does not exist.

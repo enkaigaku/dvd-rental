@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tokyoyuan/dvd-rental/internal/store/model"
-	"github.com/tokyoyuan/dvd-rental/internal/store/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/internal/store/model"
+	"github.com/enkaigaku/dvd-rental/internal/store/repository/sqlcgen"
 )
 
 // ErrNotFound is returned when a requested record does not exist.

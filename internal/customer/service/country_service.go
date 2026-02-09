@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tokyoyuan/dvd-rental/internal/customer/model"
-	"github.com/tokyoyuan/dvd-rental/internal/customer/repository"
+	"github.com/enkaigaku/dvd-rental/internal/customer/model"
+	"github.com/enkaigaku/dvd-rental/internal/customer/repository"
 )
 
 // CountryService contains business logic for country operations (read-only).

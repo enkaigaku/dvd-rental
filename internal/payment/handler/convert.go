@@ -7,9 +7,9 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	paymentv1 "github.com/tokyoyuan/dvd-rental/gen/proto/payment/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/payment/model"
-	"github.com/tokyoyuan/dvd-rental/internal/payment/service"
+	paymentv1 "github.com/enkaigaku/dvd-rental/gen/proto/payment/v1"
+	"github.com/enkaigaku/dvd-rental/internal/payment/model"
+	"github.com/enkaigaku/dvd-rental/internal/payment/service"
 )
 
 func toGRPCError(err error) error {

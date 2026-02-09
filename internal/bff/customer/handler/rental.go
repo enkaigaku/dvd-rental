@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	rentalv1 "github.com/tokyoyuan/dvd-rental/gen/proto/rental/v1"
-	"github.com/tokyoyuan/dvd-rental/pkg/middleware"
+	rentalv1 "github.com/enkaigaku/dvd-rental/gen/proto/rental/v1"
+	"github.com/enkaigaku/dvd-rental/pkg/middleware"
 )
 
 // RentalHandler handles rental endpoints (all require auth).

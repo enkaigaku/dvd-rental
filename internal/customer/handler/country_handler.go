@@ -3,8 +3,8 @@ package handler
 import (
 	"context"
 
-	customerv1 "github.com/tokyoyuan/dvd-rental/gen/proto/customer/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/customer/service"
+	customerv1 "github.com/enkaigaku/dvd-rental/gen/proto/customer/v1"
+	"github.com/enkaigaku/dvd-rental/internal/customer/service"
 )
 
 // CountryHandler implements the CountryService gRPC server.

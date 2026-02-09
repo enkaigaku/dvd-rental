@@ -1,4 +1,4 @@
-module github.com/tokyoyuan/dvd-rental
+module github.com/enkaigaku/dvd-rental
 
 go 1.25.7
 

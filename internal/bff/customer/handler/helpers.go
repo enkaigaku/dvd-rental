@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/tokyoyuan/dvd-rental/pkg/middleware"
+	"github.com/enkaigaku/dvd-rental/pkg/middleware"
 )
 
 // parseID extracts and parses an int32 ID from a path parameter.

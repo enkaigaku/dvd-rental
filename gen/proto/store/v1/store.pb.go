@@ -1176,7 +1176,7 @@ const file_store_v1_store_proto_rawDesc = "" +
 	"\vCreateStaff\x12\x1c.store.v1.CreateStaffRequest\x1a\x0f.store.v1.Staff\x12<\n" +
 	"\vUpdateStaff\x12\x1c.store.v1.UpdateStaffRequest\x1a\x0f.store.v1.Staff\x12D\n" +
 	"\x0fDeactivateStaff\x12 .store.v1.DeactivateStaffRequest\x1a\x0f.store.v1.Staff\x12S\n" +
-	"\x13UpdateStaffPassword\x12$.store.v1.UpdateStaffPasswordRequest\x1a\x16.google.protobuf.EmptyB<Z:github.com/tokyoyuan/dvd-rental/gen/proto/store/v1;storev1b\x06proto3"
+	"\x13UpdateStaffPassword\x12$.store.v1.UpdateStaffPasswordRequest\x1a\x16.google.protobuf.EmptyB<Z:github.com/enkaigaku/dvd-rental/gen/proto/store/v1;storev1b\x06proto3"
 
 var (
 	file_store_v1_store_proto_rawDescOnce sync.Once

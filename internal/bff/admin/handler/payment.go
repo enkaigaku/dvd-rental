@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	paymentv1 "github.com/tokyoyuan/dvd-rental/gen/proto/payment/v1"
+	paymentv1 "github.com/enkaigaku/dvd-rental/gen/proto/payment/v1"
 )
 
 // PaymentHandler handles payment management endpoints.

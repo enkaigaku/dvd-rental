@@ -5,10 +5,10 @@ import (
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	storev1 "github.com/tokyoyuan/dvd-rental/gen/proto/store/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/store/model"
-	"github.com/tokyoyuan/dvd-rental/internal/store/repository"
-	"github.com/tokyoyuan/dvd-rental/internal/store/service"
+	storev1 "github.com/enkaigaku/dvd-rental/gen/proto/store/v1"
+	"github.com/enkaigaku/dvd-rental/internal/store/model"
+	"github.com/enkaigaku/dvd-rental/internal/store/repository"
+	"github.com/enkaigaku/dvd-rental/internal/store/service"
 )
 
 // StaffHandler implements the StaffServiceServer gRPC interface.

@@ -12,16 +12,16 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	customerv1 "github.com/tokyoyuan/dvd-rental/gen/proto/customer/v1"
-	filmv1 "github.com/tokyoyuan/dvd-rental/gen/proto/film/v1"
-	paymentv1 "github.com/tokyoyuan/dvd-rental/gen/proto/payment/v1"
-	rentalv1 "github.com/tokyoyuan/dvd-rental/gen/proto/rental/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/bff/customer/config"
-	"github.com/tokyoyuan/dvd-rental/internal/bff/customer/handler"
-	"github.com/tokyoyuan/dvd-rental/internal/bff/customer/router"
-	"github.com/tokyoyuan/dvd-rental/pkg/auth"
-	"github.com/tokyoyuan/dvd-rental/pkg/grpcutil"
-	"github.com/tokyoyuan/dvd-rental/pkg/middleware"
+	customerv1 "github.com/enkaigaku/dvd-rental/gen/proto/customer/v1"
+	filmv1 "github.com/enkaigaku/dvd-rental/gen/proto/film/v1"
+	paymentv1 "github.com/enkaigaku/dvd-rental/gen/proto/payment/v1"
+	rentalv1 "github.com/enkaigaku/dvd-rental/gen/proto/rental/v1"
+	"github.com/enkaigaku/dvd-rental/internal/bff/customer/config"
+	"github.com/enkaigaku/dvd-rental/internal/bff/customer/handler"
+	"github.com/enkaigaku/dvd-rental/internal/bff/customer/router"
+	"github.com/enkaigaku/dvd-rental/pkg/auth"
+	"github.com/enkaigaku/dvd-rental/pkg/grpcutil"
+	"github.com/enkaigaku/dvd-rental/pkg/middleware"
 )
 
 func main() {

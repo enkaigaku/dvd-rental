@@ -1774,7 +1774,7 @@ const file_customer_v1_customer_proto_rawDesc = "" +
 	"\x0eCountryService\x12B\n" +
 	"\n" +
 	"GetCountry\x12\x1e.customer.v1.GetCountryRequest\x1a\x14.customer.v1.Country\x12V\n" +
-	"\rListCountries\x12!.customer.v1.ListCountriesRequest\x1a\".customer.v1.ListCountriesResponseBBZ@github.com/tokyoyuan/dvd-rental/gen/proto/customer/v1;customerv1b\x06proto3"
+	"\rListCountries\x12!.customer.v1.ListCountriesRequest\x1a\".customer.v1.ListCountriesResponseBBZ@github.com/enkaigaku/dvd-rental/gen/proto/customer/v1;customerv1b\x06proto3"
 
 var (
 	file_customer_v1_customer_proto_rawDescOnce sync.Once

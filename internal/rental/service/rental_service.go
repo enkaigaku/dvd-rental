@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tokyoyuan/dvd-rental/internal/rental/model"
-	"github.com/tokyoyuan/dvd-rental/internal/rental/repository"
+	"github.com/enkaigaku/dvd-rental/internal/rental/model"
+	"github.com/enkaigaku/dvd-rental/internal/rental/repository"
 )
 
 // RentalService contains business logic for rental operations.

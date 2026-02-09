@@ -14,11 +14,11 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	paymentv1 "github.com/tokyoyuan/dvd-rental/gen/proto/payment/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/payment/config"
-	"github.com/tokyoyuan/dvd-rental/internal/payment/handler"
-	"github.com/tokyoyuan/dvd-rental/internal/payment/repository"
-	"github.com/tokyoyuan/dvd-rental/internal/payment/service"
+	paymentv1 "github.com/enkaigaku/dvd-rental/gen/proto/payment/v1"
+	"github.com/enkaigaku/dvd-rental/internal/payment/config"
+	"github.com/enkaigaku/dvd-rental/internal/payment/handler"
+	"github.com/enkaigaku/dvd-rental/internal/payment/repository"
+	"github.com/enkaigaku/dvd-rental/internal/payment/service"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	customerv1 "github.com/tokyoyuan/dvd-rental/gen/proto/customer/v1"
+	customerv1 "github.com/enkaigaku/dvd-rental/gen/proto/customer/v1"
 )
 
 // CustomerHandler handles customer management endpoints.

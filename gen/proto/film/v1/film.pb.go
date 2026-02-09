@@ -2102,7 +2102,7 @@ const file_film_v1_film_proto_rawDesc = "" +
 	"\x0eListCategories\x12\x1e.film.v1.ListCategoriesRequest\x1a\x1f.film.v1.ListCategoriesResponse2\xa0\x01\n" +
 	"\x0fLanguageService\x12=\n" +
 	"\vGetLanguage\x12\x1b.film.v1.GetLanguageRequest\x1a\x11.film.v1.Language\x12N\n" +
-	"\rListLanguages\x12\x1d.film.v1.ListLanguagesRequest\x1a\x1e.film.v1.ListLanguagesResponseB:Z8github.com/tokyoyuan/dvd-rental/gen/proto/film/v1;filmv1b\x06proto3"
+	"\rListLanguages\x12\x1d.film.v1.ListLanguagesRequest\x1a\x1e.film.v1.ListLanguagesResponseB:Z8github.com/enkaigaku/dvd-rental/gen/proto/film/v1;filmv1b\x06proto3"
 
 var (
 	file_film_v1_film_proto_rawDescOnce sync.Once

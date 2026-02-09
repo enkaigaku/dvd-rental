@@ -1348,7 +1348,7 @@ const file_rental_v1_rental_proto_rawDesc = "" +
 	"\x1aCheckInventoryAvailability\x12,.rental.v1.CheckInventoryAvailabilityRequest\x1a-.rental.v1.CheckInventoryAvailabilityResponse\x12d\n" +
 	"\x16ListAvailableInventory\x12(.rental.v1.ListAvailableInventoryRequest\x1a .rental.v1.ListInventoryResponse\x12J\n" +
 	"\x0fCreateInventory\x12!.rental.v1.CreateInventoryRequest\x1a\x14.rental.v1.Inventory\x12L\n" +
-	"\x0fDeleteInventory\x12!.rental.v1.DeleteInventoryRequest\x1a\x16.google.protobuf.EmptyB>Z<github.com/tokyoyuan/dvd-rental/gen/proto/rental/v1;rentalv1b\x06proto3"
+	"\x0fDeleteInventory\x12!.rental.v1.DeleteInventoryRequest\x1a\x16.google.protobuf.EmptyB>Z<github.com/enkaigaku/dvd-rental/gen/proto/rental/v1;rentalv1b\x06proto3"
 
 var (
 	file_rental_v1_rental_proto_rawDescOnce sync.Once

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tokyoyuan/dvd-rental/internal/payment/model"
-	"github.com/tokyoyuan/dvd-rental/internal/payment/repository"
+	"github.com/enkaigaku/dvd-rental/internal/payment/model"
+	"github.com/enkaigaku/dvd-rental/internal/payment/repository"
 )
 
 // PaymentService contains business logic for payment operations.

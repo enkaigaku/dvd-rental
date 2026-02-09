@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	filmv1 "github.com/tokyoyuan/dvd-rental/gen/proto/film/v1"
+	filmv1 "github.com/enkaigaku/dvd-rental/gen/proto/film/v1"
 )
 
 // FilmHandler handles film, actor, category, and language management endpoints.

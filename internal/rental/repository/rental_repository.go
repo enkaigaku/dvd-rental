@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tokyoyuan/dvd-rental/internal/rental/model"
-	"github.com/tokyoyuan/dvd-rental/internal/rental/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/internal/rental/model"
+	"github.com/enkaigaku/dvd-rental/internal/rental/repository/sqlcgen"
 )
 
 // ErrNotFound is returned when a queried entity does not exist.

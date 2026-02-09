@@ -572,7 +572,7 @@ dvd-rental/
 
 #### 创建的文件
 - **`.gitignore`** — Go、IDE、OS、Docker、环境变量等忽略规则
-- **`go.mod`** — 模块 `github.com/tokyoyuan/dvd-rental`，Go 1.25.7
+- **`go.mod`** — 模块 `github.com/enkaigaku/dvd-rental`，Go 1.25.7
 - **`deployments/docker-compose.yml`** — 三个基础设施容器：
   - PostgreSQL 17.6-alpine（端口 5432，用户/密码 dvdrental，挂载 migrations）
   - Redis 7-alpine（端口 6379）

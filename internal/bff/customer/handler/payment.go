@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	paymentv1 "github.com/tokyoyuan/dvd-rental/gen/proto/payment/v1"
-	"github.com/tokyoyuan/dvd-rental/pkg/middleware"
+	paymentv1 "github.com/enkaigaku/dvd-rental/gen/proto/payment/v1"
+	"github.com/enkaigaku/dvd-rental/pkg/middleware"
 )
 
 // PaymentHandler handles payment endpoints (all require auth).

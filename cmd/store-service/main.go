@@ -16,11 +16,11 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	storev1 "github.com/tokyoyuan/dvd-rental/gen/proto/store/v1"
-	"github.com/tokyoyuan/dvd-rental/internal/store/config"
-	"github.com/tokyoyuan/dvd-rental/internal/store/handler"
-	"github.com/tokyoyuan/dvd-rental/internal/store/repository"
-	"github.com/tokyoyuan/dvd-rental/internal/store/service"
+	storev1 "github.com/enkaigaku/dvd-rental/gen/proto/store/v1"
+	"github.com/enkaigaku/dvd-rental/internal/store/config"
+	"github.com/enkaigaku/dvd-rental/internal/store/handler"
+	"github.com/enkaigaku/dvd-rental/internal/store/repository"
+	"github.com/enkaigaku/dvd-rental/internal/store/service"
 )
 
 func main() {

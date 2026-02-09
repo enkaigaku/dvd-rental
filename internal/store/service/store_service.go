@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tokyoyuan/dvd-rental/internal/store/model"
-	"github.com/tokyoyuan/dvd-rental/internal/store/repository"
+	"github.com/enkaigaku/dvd-rental/internal/store/model"
+	"github.com/enkaigaku/dvd-rental/internal/store/repository"
 )
 
 const (

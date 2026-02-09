@@ -3,8 +3,8 @@ package router
 import (
 	"net/http"
 
-	"github.com/tokyoyuan/dvd-rental/internal/bff/admin/handler"
-	"github.com/tokyoyuan/dvd-rental/pkg/middleware"
+	"github.com/enkaigaku/dvd-rental/internal/bff/admin/handler"
+	"github.com/enkaigaku/dvd-rental/pkg/middleware"
 )
 
 // NewRouter creates the HTTP handler with all routes and middleware.
