@@ -29,15 +29,16 @@ func toGRPCError(err error) error {
 
 func customerToProto(c model.Customer) *customerv1.Customer {
 	return &customerv1.Customer{
-		CustomerId: c.CustomerID,
-		StoreId:    c.StoreID,
-		FirstName:  c.FirstName,
-		LastName:   c.LastName,
-		Email:      c.Email,
-		AddressId:  c.AddressID,
-		Active:     c.Active,
-		CreateDate: timestamppb.New(c.CreateDate),
-		LastUpdate: timestamppb.New(c.LastUpdate),
+		CustomerId:   c.CustomerID,
+		StoreId:      c.StoreID,
+		FirstName:    c.FirstName,
+		LastName:     c.LastName,
+		Email:        c.Email,
+		AddressId:    c.AddressID,
+		Active:       c.Active,
+		CreateDate:   timestamppb.New(c.CreateDate),
+		LastUpdate:   timestamppb.New(c.LastUpdate),
+		PasswordHash: c.PasswordHash,
 	}
 }
 

@@ -22,6 +22,14 @@ func NewCustomerHandler(svc *service.CustomerService) *CustomerHandler {
 	return &CustomerHandler{svc: svc}
 }
 
+func (h *CustomerHandler) GetCustomerByEmail(ctx context.Context, req *customerv1.GetCustomerByEmailRequest) (*customerv1.Customer, error) {
+	cust, err := h.svc.GetCustomerByEmail(ctx, req.GetEmail())
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+	return customerToProto(cust), nil
+}
+
 func (h *CustomerHandler) GetCustomer(ctx context.Context, req *customerv1.GetCustomerRequest) (*customerv1.CustomerDetail, error) {
 	detail, err := h.svc.GetCustomer(ctx, req.GetCustomerId())
 	if err != nil {

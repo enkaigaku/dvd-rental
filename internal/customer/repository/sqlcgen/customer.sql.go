@@ -136,6 +136,33 @@ func (q *Queries) GetCustomer(ctx context.Context, customerID int32) (GetCustome
 	return i, err
 }
 
+const getCustomerByEmail = `-- name: GetCustomerByEmail :one
+SELECT customer_id, store_id, first_name, last_name, email,
+       address_id, activebool, create_date, last_update, active,
+       password_hash
+FROM customer
+WHERE email = $1
+`
+
+func (q *Queries) GetCustomerByEmail(ctx context.Context, email pgtype.Text) (Customer, error) {
+	row := q.db.QueryRow(ctx, getCustomerByEmail, email)
+	var i Customer
+	err := row.Scan(
+		&i.CustomerID,
+		&i.StoreID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.AddressID,
+		&i.Activebool,
+		&i.CreateDate,
+		&i.LastUpdate,
+		&i.Active,
+		&i.PasswordHash,
+	)
+	return i, err
+}
+
 const listCustomers = `-- name: ListCustomers :many
 SELECT customer_id, store_id, first_name, last_name, email,
        address_id, activebool, create_date, last_update, active

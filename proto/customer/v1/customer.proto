@@ -10,6 +10,7 @@ import "google/protobuf/timestamp.proto";
 // CustomerService manages customers.
 service CustomerService {
   rpc GetCustomer(GetCustomerRequest) returns (CustomerDetail);
+  rpc GetCustomerByEmail(GetCustomerByEmailRequest) returns (Customer);
   rpc ListCustomers(ListCustomersRequest) returns (ListCustomersResponse);
   rpc ListCustomersByStore(ListCustomersByStoreRequest) returns (ListCustomersResponse);
   rpc CreateCustomer(CreateCustomerRequest) returns (Customer);
@@ -53,6 +54,8 @@ message Customer {
   bool active = 7;
   google.protobuf.Timestamp create_date = 8;
   google.protobuf.Timestamp last_update = 9;
+  // password_hash is only populated in GetCustomerByEmail (for BFF auth).
+  string password_hash = 10;
 }
 
 // CustomerDetail is an enriched customer message for single-customer views.
@@ -69,6 +72,10 @@ message CustomerDetail {
 
 message GetCustomerRequest {
   int32 customer_id = 1;
+}
+
+message GetCustomerByEmailRequest {
+  string email = 1;
 }
 
 message ListCustomersRequest {

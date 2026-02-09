@@ -40,6 +40,7 @@ type UpdateCustomerParams struct {
 // CustomerRepository defines data-access operations for customers.
 type CustomerRepository interface {
 	GetCustomer(ctx context.Context, customerID int32) (model.Customer, error)
+	GetCustomerByEmail(ctx context.Context, email string) (model.Customer, error)
 	ListCustomers(ctx context.Context, limit, offset int32) ([]model.Customer, error)
 	CountCustomers(ctx context.Context) (int64, error)
 	ListCustomersByStore(ctx context.Context, storeID, limit, offset int32) ([]model.Customer, error)
@@ -68,6 +69,20 @@ func (r *customerRepository) GetCustomer(ctx context.Context, customerID int32) 
 	}
 	return toCustomerModel(row.CustomerID, row.StoreID, row.FirstName, row.LastName,
 		row.Email, row.AddressID, row.Activebool, row.CreateDate, row.LastUpdate), nil
+}
+
+func (r *customerRepository) GetCustomerByEmail(ctx context.Context, email string) (model.Customer, error) {
+	row, err := r.q.GetCustomerByEmail(ctx, stringToText(email))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.Customer{}, ErrNotFound
+		}
+		return model.Customer{}, fmt.Errorf("get customer by email: %w", err)
+	}
+	c := toCustomerModel(row.CustomerID, row.StoreID, row.FirstName, row.LastName,
+		row.Email, row.AddressID, row.Activebool, row.CreateDate, row.LastUpdate)
+	c.PasswordHash = textToString(row.PasswordHash)
+	return c, nil
 }
 
 func (r *customerRepository) ListCustomers(ctx context.Context, limit, offset int32) ([]model.Customer, error) {

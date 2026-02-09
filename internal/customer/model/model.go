@@ -4,15 +4,16 @@ import "time"
 
 // Customer represents a customer in the DVD rental system.
 type Customer struct {
-	CustomerID int32
-	StoreID    int32
-	FirstName  string
-	LastName   string
-	Email      string
-	AddressID  int32
-	Active     bool
-	CreateDate time.Time
-	LastUpdate time.Time
+	CustomerID   int32
+	StoreID      int32
+	FirstName    string
+	LastName     string
+	Email        string
+	AddressID    int32
+	Active       bool
+	CreateDate   time.Time
+	LastUpdate   time.Time
+	PasswordHash string // Only populated by GetCustomerByEmail for BFF auth.
 }
 
 // CustomerDetail is an enriched customer with address information.

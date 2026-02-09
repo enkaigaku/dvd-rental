@@ -32,6 +32,23 @@ func NewCustomerService(
 	}
 }
 
+// GetCustomerByEmail retrieves a customer by email (includes password_hash for auth).
+func (s *CustomerService) GetCustomerByEmail(ctx context.Context, email string) (model.Customer, error) {
+	if email == "" {
+		return model.Customer{}, fmt.Errorf("email must not be empty: %w", ErrInvalidArgument)
+	}
+
+	cust, err := s.customerRepo.GetCustomerByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return model.Customer{}, fmt.Errorf("customer with email %q: %w", email, ErrNotFound)
+		}
+		return model.Customer{}, err
+	}
+
+	return cust, nil
+}
+
 // GetCustomer returns a customer with enriched address details.
 func (s *CustomerService) GetCustomer(ctx context.Context, customerID int32) (model.CustomerDetail, error) {
 	if customerID <= 0 {

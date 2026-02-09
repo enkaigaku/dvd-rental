@@ -4,6 +4,13 @@ SELECT customer_id, store_id, first_name, last_name, email,
 FROM customer
 WHERE customer_id = $1;
 
+-- name: GetCustomerByEmail :one
+SELECT customer_id, store_id, first_name, last_name, email,
+       address_id, activebool, create_date, last_update, active,
+       password_hash
+FROM customer
+WHERE email = $1;
+
 -- name: ListCustomers :many
 SELECT customer_id, store_id, first_name, last_name, email,
        address_id, activebool, create_date, last_update, active
