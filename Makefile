@@ -1,7 +1,8 @@
 .PHONY: infra-up infra-down infra-logs infra-ps \
        proto-gen sqlc-gen generate \
        run-store run-film run-customer run-rental run-payment \
-       run-customer-bff test lint fmt
+       run-customer-bff run-admin-bff \
+       build-all test lint fmt
 
 # Infrastructure
 infra-up:
@@ -25,7 +26,7 @@ sqlc-gen:
 
 generate: proto-gen sqlc-gen
 
-# Run services
+# Run gRPC services (local development)
 run-store:
 	go run ./cmd/store-service
 
@@ -41,9 +42,22 @@ run-rental:
 run-payment:
 	go run ./cmd/payment-service
 
-# Run BFF services
+# Run BFF services (local development)
 run-customer-bff:
 	go run ./cmd/customer-bff
+
+run-admin-bff:
+	go run ./cmd/admin-bff
+
+# Build all services
+build-all:
+	go build ./cmd/store-service
+	go build ./cmd/film-service
+	go build ./cmd/customer-service
+	go build ./cmd/rental-service
+	go build ./cmd/payment-service
+	go build ./cmd/customer-bff
+	go build ./cmd/admin-bff
 
 # Testing
 test:

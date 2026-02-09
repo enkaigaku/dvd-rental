@@ -43,6 +43,8 @@ services:
       timeout: 5s
       retries: 5
 
+  # --- gRPC Services ---
+
   store-service:
     build:
       context: ..
@@ -52,12 +54,121 @@ services:
       - "50051:50051"
     environment:
       DATABASE_URL: postgres://dvdrental:dvdrental@postgres:5432/dvdrental?sslmode=disable
-      GRPC_PORT: 50051
+      GRPC_PORT: "50051"
       LOG_LEVEL: debug
     depends_on:
       postgres:
         condition: service_healthy
 
+  film-service:
+    build:
+      context: ..
+      dockerfile: deployments/dockerfiles/film-service.Dockerfile
+    container_name: dvd-rental-film-service
+    ports:
+      - "50052:50052"
+    environment:
+      DATABASE_URL: postgres://dvdrental:dvdrental@postgres:5432/dvdrental?sslmode=disable
+      GRPC_PORT: "50052"
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  customer-service:
+    build:
+      context: ..
+      dockerfile: deployments/dockerfiles/customer-service.Dockerfile
+    container_name: dvd-rental-customer-service
+    ports:
+      - "50053:50053"
+    environment:
+      DATABASE_URL: postgres://dvdrental:dvdrental@postgres:5432/dvdrental?sslmode=disable
+      GRPC_PORT: "50053"
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  rental-service:
+    build:
+      context: ..
+      dockerfile: deployments/dockerfiles/rental-service.Dockerfile
+    container_name: dvd-rental-rental-service
+    ports:
+      - "50054:50054"
+    environment:
+      DATABASE_URL: postgres://dvdrental:dvdrental@postgres:5432/dvdrental?sslmode=disable
+      GRPC_PORT: "50054"
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  payment-service:
+    build:
+      context: ..
+      dockerfile: deployments/dockerfiles/payment-service.Dockerfile
+    container_name: dvd-rental-payment-service
+    ports:
+      - "50055:50055"
+    environment:
+      DATABASE_URL: postgres://dvdrental:dvdrental@postgres:5432/dvdrental?sslmode=disable
+      GRPC_PORT: "50055"
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # --- BFF Services ---
+
+  customer-bff:
+    build:
+      context: ..
+      dockerfile: deployments/dockerfiles/customer-bff.Dockerfile
+    container_name: dvd-rental-customer-bff
+    ports:
+      - "8080:8080"
+    environment:
+      HTTP_PORT: "8080"
+      JWT_SECRET: your-jwt-secret-change-in-production
+      REDIS_URL: redis://redis:6379
+      GRPC_CUSTOMER_ADDR: customer-service:50053
+      GRPC_FILM_ADDR: film-service:50052
+      GRPC_RENTAL_ADDR: rental-service:50054
+      GRPC_PAYMENT_ADDR: payment-service:50055
+      LOG_LEVEL: debug
+    depends_on:
+      - redis
+      - customer-service
+      - film-service
+      - rental-service
+      - payment-service
+
+  admin-bff:
+    build:
+      context: ..
+      dockerfile: deployments/dockerfiles/admin-bff.Dockerfile
+    container_name: dvd-rental-admin-bff
+    ports:
+      - "8081:8081"
+    environment:
+      HTTP_PORT: "8081"
+      JWT_SECRET: your-jwt-secret-change-in-production
+      REDIS_URL: redis://redis:6379
+      GRPC_STORE_ADDR: store-service:50051
+      GRPC_CUSTOMER_ADDR: customer-service:50053
+      GRPC_FILM_ADDR: film-service:50052
+      GRPC_RENTAL_ADDR: rental-service:50054
+      GRPC_PAYMENT_ADDR: payment-service:50055
+      LOG_LEVEL: debug
+    depends_on:
+      - redis
+      - store-service
+      - customer-service
+      - film-service
+      - rental-service
+      - payment-service
 
 volumes:
   postgres_data:
