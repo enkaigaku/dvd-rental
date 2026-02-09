@@ -1,37 +1,22 @@
+// Package config handles configuration loading for the payment service.
 package config
 
 import (
-	"fmt"
-	"os"
+	"github.com/kelseyhightower/envconfig"
 )
 
-// Config holds configuration for the payment service.
+// Config holds the payment service configuration.
 type Config struct {
-	DatabaseURL string
-	GRPCPort    string
-	LogLevel    string
+	DatabaseURL string `envconfig:"DATABASE_URL" required:"true"`
+	GRPCPort    string `envconfig:"GRPC_PORT" default:"50055"`
+	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
 }
 
 // Load reads configuration from environment variables.
 func Load() (*Config, error) {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL is required")
+	var cfg Config
+	if err := envconfig.Process("", &cfg); err != nil {
+		return nil, err
 	}
-
-	grpcPort := os.Getenv("GRPC_PORT")
-	if grpcPort == "" {
-		grpcPort = "50055"
-	}
-
-	logLevel := os.Getenv("LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = "info"
-	}
-
-	return &Config{
-		DatabaseURL: dbURL,
-		GRPCPort:    grpcPort,
-		LogLevel:    logLevel,
-	}, nil
+	return &cfg, nil
 }
