@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package payment.v1;
+
+option go_package = "github.com/tokyoyuan/dvd-rental/gen/proto/payment/v1;paymentv1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// PaymentService manages payment records.
+service PaymentService {
+  rpc GetPayment(GetPaymentRequest) returns (PaymentDetail);
+  rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse);
+  rpc ListPaymentsByCustomer(ListPaymentsByCustomerRequest) returns (ListPaymentsResponse);
+  rpc ListPaymentsByStaff(ListPaymentsByStaffRequest) returns (ListPaymentsResponse);
+  rpc ListPaymentsByRental(ListPaymentsByRentalRequest) returns (ListPaymentsResponse);
+  rpc ListPaymentsByDateRange(ListPaymentsByDateRangeRequest) returns (ListPaymentsResponse);
+  rpc CreatePayment(CreatePaymentRequest) returns (Payment);
+  rpc DeletePayment(DeletePaymentRequest) returns (google.protobuf.Empty);
+}
+
+// ---------------------------------------------------------------------------
+// Messages
+// ---------------------------------------------------------------------------
+
+// Payment represents a payment record.
+message Payment {
+  int32 payment_id = 1;
+  int32 customer_id = 2;
+  int32 staff_id = 3;
+  int32 rental_id = 4;
+  string amount = 5; // numeric(5,2) as string
+  google.protobuf.Timestamp payment_date = 6;
+}
+
+// PaymentDetail is an enriched payment for single-payment views.
+message PaymentDetail {
+  Payment payment = 1;
+  string customer_name = 2;
+  string staff_name = 3;
+  google.protobuf.Timestamp rental_date = 4; // null if rental not found
+}
+
+message GetPaymentRequest {
+  int32 payment_id = 1;
+}
+
+message ListPaymentsRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListPaymentsResponse {
+  repeated Payment payments = 1;
+  int32 total_count = 2;
+}
+
+message ListPaymentsByCustomerRequest {
+  int32 customer_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message ListPaymentsByStaffRequest {
+  int32 staff_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message ListPaymentsByRentalRequest {
+  int32 rental_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message ListPaymentsByDateRangeRequest {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp end_date = 2;
+  int32 page_size = 3;
+  int32 page = 4;
+}
+
+message CreatePaymentRequest {
+  int32 customer_id = 1;
+  int32 staff_id = 2;
+  int32 rental_id = 3;
+  string amount = 4; // e.g. "4.99"
+}
+
+message DeletePaymentRequest {
+  int32 payment_id = 1;
+}
