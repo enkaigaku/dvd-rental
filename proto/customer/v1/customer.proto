@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package customer.v1;
+
+option go_package = "github.com/tokyoyuan/dvd-rental/gen/proto/customer/v1;customerv1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// CustomerService manages customers.
+service CustomerService {
+  rpc GetCustomer(GetCustomerRequest) returns (CustomerDetail);
+  rpc ListCustomers(ListCustomersRequest) returns (ListCustomersResponse);
+  rpc ListCustomersByStore(ListCustomersByStoreRequest) returns (ListCustomersResponse);
+  rpc CreateCustomer(CreateCustomerRequest) returns (Customer);
+  rpc UpdateCustomer(UpdateCustomerRequest) returns (Customer);
+  rpc DeleteCustomer(DeleteCustomerRequest) returns (google.protobuf.Empty);
+}
+
+// AddressService manages addresses.
+service AddressService {
+  rpc GetAddress(GetAddressRequest) returns (Address);
+  rpc ListAddresses(ListAddressesRequest) returns (ListAddressesResponse);
+  rpc CreateAddress(CreateAddressRequest) returns (Address);
+  rpc UpdateAddress(UpdateAddressRequest) returns (Address);
+  rpc DeleteAddress(DeleteAddressRequest) returns (google.protobuf.Empty);
+}
+
+// CityService provides read-only access to cities.
+service CityService {
+  rpc GetCity(GetCityRequest) returns (City);
+  rpc ListCities(ListCitiesRequest) returns (ListCitiesResponse);
+}
+
+// CountryService provides read-only access to countries.
+service CountryService {
+  rpc GetCountry(GetCountryRequest) returns (Country);
+  rpc ListCountries(ListCountriesRequest) returns (ListCountriesResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Customer
+// ---------------------------------------------------------------------------
+
+// Customer represents basic customer data used in list views.
+message Customer {
+  int32 customer_id = 1;
+  int32 store_id = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string email = 5;
+  int32 address_id = 6;
+  bool active = 7;
+  google.protobuf.Timestamp create_date = 8;
+  google.protobuf.Timestamp last_update = 9;
+}
+
+// CustomerDetail is an enriched customer message for single-customer views.
+message CustomerDetail {
+  Customer customer = 1;
+  string address = 2;
+  string address2 = 3;
+  string district = 4;
+  string city = 5;
+  string country = 6;
+  string postal_code = 7;
+  string phone = 8;
+}
+
+message GetCustomerRequest {
+  int32 customer_id = 1;
+}
+
+message ListCustomersRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListCustomersResponse {
+  repeated Customer customers = 1;
+  int32 total_count = 2;
+}
+
+message ListCustomersByStoreRequest {
+  int32 store_id = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message CreateCustomerRequest {
+  int32 store_id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+  int32 address_id = 5;
+  bool active = 6;
+}
+
+message UpdateCustomerRequest {
+  int32 customer_id = 1;
+  int32 store_id = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string email = 5;
+  int32 address_id = 6;
+  bool active = 7;
+}
+
+message DeleteCustomerRequest {
+  int32 customer_id = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Address
+// ---------------------------------------------------------------------------
+
+message Address {
+  int32 address_id = 1;
+  string address = 2;
+  string address2 = 3;
+  string district = 4;
+  int32 city_id = 5;
+  string postal_code = 6;
+  string phone = 7;
+  google.protobuf.Timestamp last_update = 8;
+}
+
+message GetAddressRequest {
+  int32 address_id = 1;
+}
+
+message ListAddressesRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListAddressesResponse {
+  repeated Address addresses = 1;
+  int32 total_count = 2;
+}
+
+message CreateAddressRequest {
+  string address = 1;
+  string address2 = 2;
+  string district = 3;
+  int32 city_id = 4;
+  string postal_code = 5;
+  string phone = 6;
+}
+
+message UpdateAddressRequest {
+  int32 address_id = 1;
+  string address = 2;
+  string address2 = 3;
+  string district = 4;
+  int32 city_id = 5;
+  string postal_code = 6;
+  string phone = 7;
+}
+
+message DeleteAddressRequest {
+  int32 address_id = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: City
+// ---------------------------------------------------------------------------
+
+message City {
+  int32 city_id = 1;
+  string city = 2;
+  int32 country_id = 3;
+  google.protobuf.Timestamp last_update = 4;
+}
+
+message GetCityRequest {
+  int32 city_id = 1;
+}
+
+message ListCitiesRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListCitiesResponse {
+  repeated City cities = 1;
+  int32 total_count = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Country
+// ---------------------------------------------------------------------------
+
+message Country {
+  int32 country_id = 1;
+  string country = 2;
+  google.protobuf.Timestamp last_update = 3;
+}
+
+message GetCountryRequest {
+  int32 country_id = 1;
+}
+
+message ListCountriesRequest {
+  int32 page_size = 1;
+  int32 page = 2;
+}
+
+message ListCountriesResponse {
+  repeated Country countries = 1;
+  int32 total_count = 2;
+}
