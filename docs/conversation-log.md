@@ -1701,4 +1701,259 @@ sql/queries/payment/
 
 ---
 
-*状态：全部 5 个核心微服务实施完成 —— 准备进入 BFF 层 + 公共模块实施阶段*
+*状态：全部 5 个核心微服务 + 2 个 BFF 层实施完成*
+
+---
+
+## 2026-02-09
+
+### BFF 层实施
+
+在完成 5 个核心 gRPC 微服务后，进入 BFF（Backend for Frontend）层实施阶段。BFF 层为不同客户端提供专门优化的 REST API。
+
+---
+
+### Phase 6：Customer BFF（面向租客）
+
+#### 概述
+
+customer-bff 为顾客端（APP/网站）提供 REST API，连接 4 个后端 gRPC 服务。
+
+- **端口**：8080
+- **技术栈**：纯标准库 `net/http`
+- **认证**：JWT 双 Token（Access + Refresh），Customer 用 email 登录
+
+#### 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       customer-bff (:8080)                      │
+│                                                                 │
+│  Public:                      Protected (JWT):                  │
+│  ├─ POST /auth/login          ├─ GET/POST /rentals             │
+│  ├─ POST /auth/refresh        ├─ POST /rentals/{id}/return     │
+│  ├─ POST /auth/logout         ├─ GET /payments                 │
+│  ├─ GET /films/*              ├─ GET/PUT /profile              │
+│  ├─ GET /categories           │                                 │
+│  └─ GET /actors               │                                 │
+└─────────────────────────────────────────────────────────────────┘
+         │              │              │              │
+         ▼              ▼              ▼              ▼
+   customer-svc    film-svc      rental-svc     payment-svc
+    (:50053)       (:50052)       (:50054)       (:50055)
+```
+
+#### 文件结构
+
+```
+cmd/customer-bff/
+└── main.go                              # 服务入口（4 gRPC 连接 + HTTP 服务器）
+
+internal/bff/customer/
+├── config/
+│   └── config.go                        # 环境变量配置（端口 8080）
+├── handler/
+│   ├── helpers.go                       # JSON 响应、错误处理工具
+│   ├── auth.go                          # Customer JWT 认证（email 登录）
+│   ├── film.go                          # 影片浏览（搜索、分类、演员筛选）
+│   ├── rental.go                        # 租赁操作（创建、归还、查询）
+│   ├── payment.go                       # 支付记录查询
+│   └── profile.go                       # 个人信息查看/更新
+└── router/
+    └── router.go                        # 路由定义 + 中间件链
+```
+
+#### API 端点
+
+| 分类 | 端点 | 说明 |
+|------|------|------|
+| **认证** | POST /api/v1/auth/login | Customer email + password 登录 |
+| | POST /api/v1/auth/refresh | 刷新 Token |
+| | POST /api/v1/auth/logout | 登出 |
+| **影片（公开）** | GET /api/v1/films | 影片列表（分页） |
+| | GET /api/v1/films/{id} | 影片详情 |
+| | GET /api/v1/films/search?q= | 全文搜索 |
+| | GET /api/v1/films/category/{id} | 按分类筛选 |
+| | GET /api/v1/films/actor/{id} | 按演员筛选 |
+| | GET /api/v1/categories | 分类列表 |
+| | GET /api/v1/actors | 演员列表 |
+| **租赁（保护）** | GET /api/v1/rentals | 当前用户租赁记录 |
+| | GET /api/v1/rentals/{id} | 租赁详情 |
+| | POST /api/v1/rentals | 创建租赁 |
+| | POST /api/v1/rentals/{id}/return | 归还 |
+| **支付（保护）** | GET /api/v1/payments | 当前用户支付记录 |
+| **个人信息（保护）** | GET /api/v1/profile | 获取个人资料 |
+| | PUT /api/v1/profile | 更新个人资料 |
+
+共 17 个端点（10 公开 + 7 保护）
+
+---
+
+### Phase 7：Admin BFF（面向员工/管理员）
+
+#### 概述
+
+admin-bff 为管理后台提供 REST API，连接全部 5 个后端 gRPC 服务，支持完整的后台管理功能。
+
+- **端口**：8081
+- **技术栈**：纯标准库 `net/http`
+- **认证**：JWT 双 Token，Staff 用 username 登录
+
+#### 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          admin-bff (:8081)                              │
+│                                                                         │
+│  Public:                  Protected (Staff JWT):                        │
+│  ├─ POST /auth/login      ├─ CRUD /stores                              │
+│  ├─ POST /auth/refresh    ├─ CRUD /staff + password + deactivate       │
+│  └─ POST /auth/logout     ├─ CRUD /customers                           │
+│                           ├─ CRUD /films + actor/category associations │
+│                           ├─ CRUD /actors                              │
+│                           ├─ GET /categories, /languages               │
+│                           ├─ CRUD /inventory + availability check      │
+│                           ├─ CRUD /rentals + return + overdue          │
+│                           └─ CRUD /payments                            │
+└─────────────────────────────────────────────────────────────────────────┘
+         │           │           │           │           │
+         ▼           ▼           ▼           ▼           ▼
+    store-svc  customer-svc  film-svc   rental-svc  payment-svc
+    (:50051)    (:50053)     (:50052)    (:50054)    (:50055)
+```
+
+#### 文件结构
+
+```
+cmd/admin-bff/
+└── main.go                              # 服务入口（5 gRPC 连接 + HTTP 服务器）
+
+internal/bff/admin/
+├── config/
+│   └── config.go                        # 环境变量配置（端口 8081）
+├── handler/
+│   ├── helpers.go                       # JSON 响应、参数解析工具
+│   ├── auth.go                          # Staff JWT 认证（username 登录）
+│   ├── store.go                         # Store CRUD
+│   ├── staff.go                         # Staff CRUD + 密码更新 + 停用
+│   ├── customer.go                      # Customer CRUD
+│   ├── film.go                          # Film/Actor CRUD + 关联管理
+│   ├── inventory.go                     # Inventory CRUD + 可用性检查
+│   ├── rental.go                        # Rental 管理 + 逾期查询
+│   └── payment.go                       # Payment CRUD
+└── router/
+    └── router.go                        # 路由定义 + 中间件链
+```
+
+#### API 端点统计
+
+| 模块 | 端点数 | 说明 |
+|------|-------|------|
+| Auth | 3 | login, refresh, logout |
+| Stores | 5 | CRUD |
+| Staff | 6 | CRUD + deactivate + password |
+| Customers | 5 | CRUD |
+| Films | 9 | CRUD + actor/category 关联管理 |
+| Actors | 5 | CRUD |
+| Categories | 1 | list (read-only) |
+| Languages | 1 | list (read-only) |
+| Inventory | 5 | CRUD + availability |
+| Rentals | 6 | list + overdue + CRUD + return |
+| Payments | 4 | CRUD |
+| **合计** | **50** | 3 公开 + 47 保护 |
+
+#### customer-bff vs admin-bff 对比
+
+| 维度 | customer-bff | admin-bff |
+|------|-------------|-----------|
+| 端口 | 8080 | 8081 |
+| 连接后端服务数 | 4 | 5 |
+| 认证方式 | Customer email | Staff username |
+| REST 端点数 | 17 | 50 |
+| 主要功能 | 浏览影片、租赁、支付查询 | 完整后台管理 |
+| 写操作 | 仅租赁/个人信息 | 全域 CRUD |
+
+---
+
+### 公共模块（pkg）
+
+BFF 层共享以下公共模块：
+
+#### pkg/auth
+
+- **JWTManager**：生成/验证 Access + Refresh Token
+- **RefreshTokenStore**：Redis 存储刷新 Token（支持轮换+吊销）
+- **ComparePassword**：bcrypt 密码验证
+
+#### pkg/middleware
+
+- **AuthMiddleware**：JWT 验证中间件（提取 Bearer Token → 验证 → 注入 UserID/Role）
+- **Recovery**：panic 恢复
+- **Logging**：请求日志
+- **CORS**：跨域配置
+
+#### pkg/grpcutil
+
+- **MustDial**：gRPC 客户端连接（自动重连、拦截器配置）
+- **DefaultClientConfig**：默认客户端配置
+
+---
+
+### 完整项目架构
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              客户端                                     │
+│                    ┌──────────────┬──────────────┐                     │
+│                    │  顾客 APP    │   管理后台   │                     │
+│                    └──────────────┴──────────────┘                     │
+└─────────────────────────────────────────────────────────────────────────┘
+                           │                 │
+                           ▼                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            BFF 层 (REST)                               │
+│              ┌────────────────┐    ┌────────────────┐                  │
+│              │ customer-bff   │    │   admin-bff    │                  │
+│              │    (:8080)     │    │    (:8081)     │                  │
+│              │   17 端点      │    │    50 端点     │                  │
+│              └────────────────┘    └────────────────┘                  │
+└─────────────────────────────────────────────────────────────────────────┘
+                           │                 │
+                           ▼                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         核心服务层 (gRPC)                               │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐     │
+│  │  store   │ │   film   │ │ customer │ │  rental  │ │ payment  │     │
+│  │ :50051   │ │ :50052   │ │  :50053  │ │  :50054  │ │  :50055  │     │
+│  │ 13 RPC   │ │ 22 RPC   │ │  15 RPC  │ │  16 RPC  │ │  8 RPC   │     │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘     │
+└─────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          数据层                                         │
+│              ┌────────────────┐    ┌────────────────┐                  │
+│              │   PostgreSQL   │    │     Redis      │                  │
+│              │   (15 张表)    │    │ (Token 存储)   │                  │
+│              └────────────────┘    └────────────────┘                  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 项目完成汇总
+
+| 层级 | 组件 | 端口 | 技术栈 | 功能数 |
+|------|------|------|--------|-------|
+| **BFF** | customer-bff | 8080 | net/http | 17 REST |
+| | admin-bff | 8081 | net/http | 50 REST |
+| **gRPC** | store-service | 50051 | gRPC | 13 RPC |
+| | film-service | 50052 | gRPC | 22 RPC |
+| | customer-service | 50053 | gRPC | 15 RPC |
+| | rental-service | 50054 | gRPC | 16 RPC |
+| | payment-service | 50055 | gRPC | 8 RPC |
+| **合计** | 7 服务 | | | 67 REST + 74 RPC |
+
+---
+
+*状态：所有核心组件实施完成 —— 5 个 gRPC 微服务 + 2 个 BFF 层*
