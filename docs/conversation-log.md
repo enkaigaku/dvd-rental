@@ -1050,4 +1050,224 @@ sql/queries/film/
 
 ---
 
-*状态：Film Service 实施完成 —— 准备实施下一个微服务*
+### 阶段 4：Customer Service 实施
+
+**用户**：下一个服务从简单的开始。
+
+**助手**：分析剩余三个服务的复杂度：
+1. **customer-service** — 最简单：customer + address 两张表，无复杂业务逻辑，模式与 store-service 类似
+2. **rental-service** — 中等：rental + inventory，涉及库存分配、归还逻辑、跨服务查询
+3. **payment-service** — 较复杂：payment 分区表，涉及金额计算、跨服务关联
+
+选择 customer-service，管理 `customer`、`address`、`city`、`country` 共 4 张表。address → city → country 构成层级关系链。所有表均为标准 PostgreSQL 类型（text, integer, boolean, date, timestamptz），无特殊类型（ENUM/DOMAIN/ARRAY），比 film-service 简单得多。
+
+#### 关键设计决策
+
+1. **四个 gRPC 服务在一个 proto 文件中**：CustomerService（核心 CRUD）、AddressService（CRUD）、CityService（只读）、CountryService（只读），同一进程端口 50053
+2. **GetCustomer 返回 CustomerDetail**：聚合 customer + address + city name + country name，减少 BFF 调用轮次；ListCustomers 返回基础 Customer
+3. **Address 需要完整 CRUD**：客户创建/更新需要管理地址；City/Country 为只读参考数据
+4. **ListCustomersByStore**：按 store_id 过滤客户列表
+5. **active 状态同步**：`activebool` (boolean) 为源，`active` (integer) 为冗余字段，proto 暴露为 `bool active`，Create/Update 同时写入两个字段保持一致
+6. **password_hash 不暴露**：存在于 DB 但不出现在 proto 响应中；认证功能留给后续独立服务
+7. **email 唯一约束**：unique violation → AlreadyExists
+8. **DeleteCustomer 处理 FK 约束**：rental/payment 表 FK RESTRICT → FailedPrecondition
+9. **DeleteAddress 处理 FK 约束**：customer/store 表 FK RESTRICT → FailedPrecondition
+10. **create_date 只读**：由 DB DEFAULT CURRENT_DATE 生成，不接受客户端输入
+
+#### Step 1：Proto 定义 + SQL 查询 + 工具配置
+
+**新增文件：**
+
+1. **`proto/customer/v1/customer.proto`** — 四个 gRPC 服务定义
+   - `CustomerService`：GetCustomer、ListCustomers、ListCustomersByStore、CreateCustomer、UpdateCustomer、DeleteCustomer（6 RPCs）
+   - `AddressService`：GetAddress、ListAddresses、CreateAddress、UpdateAddress、DeleteAddress（5 RPCs）
+   - `CityService`：GetCity、ListCities（2 RPCs）
+   - `CountryService`：GetCountry、ListCountries（2 RPCs）
+   - 消息类型：Customer（列表用）、CustomerDetail（含 address/city/country 信息）、Address、City、Country
+
+2. **`sql/queries/customer/customer.sql`** — 8 个查询
+   - Get/List/Count（基础 CRUD）
+   - ListCustomersByStore / CountCustomersByStore（按门店过滤）
+   - CreateCustomer / UpdateCustomer（含 activebool + active 双字段）
+   - DeleteCustomer
+
+3. **`sql/queries/customer/address.sql`** — 6 个查询（Get/List/Count/Create/Update/Delete）
+
+4. **`sql/queries/customer/city.sql`** — 3 个查询（Get/List/Count，只读）
+
+5. **`sql/queries/customer/country.sql`** — 3 个查询（Get/List/Count，只读）
+
+**修改文件：**
+- `sqlc.yaml` — 新增 customer sql block（第三个 sql block）
+- `Makefile` — 添加 `run-customer` target
+
+#### Step 2：运行代码生成
+
+- `make proto-gen` → `gen/proto/customer/v1/customer.pb.go` + `customer_grpc.pb.go`
+- `make sqlc-gen` → `internal/customer/repository/sqlcgen/` 下 6 个文件（db.go, models.go, customer.sql.go, address.sql.go, city.sql.go, country.sql.go）
+- 验证 store-service 和 film-service 编译不受影响
+
+#### Step 3：Repository 层
+
+**新增文件：**
+
+1. **`internal/customer/model/model.go`** — 领域模型
+   - `Customer`：CustomerID, StoreID, FirstName, LastName, Email(string), AddressID, Active(bool), CreateDate(time.Time), LastUpdate
+   - `CustomerDetail`：嵌入 Customer + Address, Address2, District, CityName, CountryName, PostalCode, Phone
+   - `Address`：AddressID, Address, Address2, District, CityID, PostalCode, Phone, LastUpdate
+   - `City`：CityID, City, CountryID, LastUpdate
+   - `Country`：CountryID, Country, LastUpdate
+
+2. **`internal/customer/repository/helpers.go`** — 类型转换辅助函数
+   - `textToString` / `stringToText`（pgtype.Text ↔ string，NULL → ""）
+   - `dateToTime`（pgtype.Date → time.Time）
+   - `timestamptzToTime`（pgtype.Timestamptz → time.Time）
+   - `boolToActive`（bool → pgtype.Int4，true=1/false=0，同步 active 冗余字段）
+
+3. **`internal/customer/repository/customer_repository.go`**
+   - 接口 `CustomerRepository`（8 个方法）
+   - `CreateCustomerParams` / `UpdateCustomerParams` 参数结构体
+   - `toCustomerModel()` 通用转换函数（接收各行类型的公共字段作为参数）
+
+4. **`internal/customer/repository/address_repository.go`** — 接口 `AddressRepository`（6 个方法）
+
+5. **`internal/customer/repository/city_repository.go`** — 接口 `CityRepository`（3 个方法，只读）
+
+6. **`internal/customer/repository/country_repository.go`** — 接口 `CountryRepository`（3 个方法，只读）
+
+#### Step 4：Service 层
+
+**新增文件：**
+
+1. **`internal/customer/service/errors.go`** — 四个哨兵错误（同 film-service 模式）
+
+2. **`internal/customer/service/pgutil.go`** — isUniqueViolation + isForeignKeyViolation
+
+3. **`internal/customer/service/pagination.go`** — clampPagination
+
+4. **`internal/customer/service/customer_service.go`**
+   - `CustomerService` 持有全部 4 个 repo（customerRepo, addressRepo, cityRepo, countryRepo）
+   - GetCustomer：获取 customer 后链式聚合 address → city → country → CustomerDetail
+   - CreateCustomer/UpdateCustomer：校验 first_name/last_name 非空、store_id > 0、address_id 存在
+   - FK 违约 → ErrInvalidArgument（store_id/address_id 不存在）
+   - 唯一约束 → ErrAlreadyExists（email 重复）
+   - DeleteCustomer：FK 违约 → ErrForeignKey（被 rental/payment 引用）
+
+5. **`internal/customer/service/address_service.go`**
+   - `AddressService` 持有 addressRepo + cityRepo
+   - CreateAddress/UpdateAddress：校验 address/district/phone 非空、city_id 存在
+   - DeleteAddress：FK 违约 → ErrForeignKey（被 customer/store 引用）
+
+6. **`internal/customer/service/city_service.go`** — GetCity + ListCities（只读）
+
+7. **`internal/customer/service/country_service.go`** — GetCountry + ListCountries（只读）
+
+#### Step 5：Handler 层
+
+**新增文件：**
+
+1. **`internal/customer/handler/convert.go`**
+   - `toGRPCError()`：同 film-service 模式（含 ErrForeignKey → FailedPrecondition）
+   - `customerToProto()` / `customerDetailToProto()` / `addressToProto()` / `cityToProto()` / `countryToProto()`
+
+2. **`internal/customer/handler/customer_handler.go`** — 6 个 RPC 实现 + `toCustomerListResponse()` 辅助
+
+3. **`internal/customer/handler/address_handler.go`** — 5 个 RPC 实现 + `toAddressListResponse()` 辅助
+
+4. **`internal/customer/handler/city_handler.go`** — 2 个 RPC 实现
+
+5. **`internal/customer/handler/country_handler.go`** — 2 个 RPC 实现
+
+#### Step 6：Main 入口 + 配置
+
+**新增文件：**
+
+1. **`internal/customer/config/config.go`** — DATABASE_URL（必填）, GRPC_PORT（默认 "50053"）, LOG_LEVEL
+
+2. **`cmd/customer-service/main.go`**
+   - 依赖注入：4 repo → 4 service → 4 handler
+   - gRPC server 注册 4 个服务
+   - Health check 注册 4 个服务状态
+   - Reflection + graceful shutdown
+
+**Git 提交**：`feat: implement customer-service with customer, address, city, country`
+
+#### 与 Film Service 的对比
+
+| 维度 | film-service | customer-service |
+|------|-------------|-----------------|
+| 表数量 | 6（含 2 张关联表） | 4（无关联表） |
+| 特殊 PG 类型 | ENUM, DOMAIN, ARRAY, Numeric, tsvector | 无（全部标准类型） |
+| 数据聚合模式 | 扇出式（film + language + actors + categories） | 链式（customer → address → city → country） |
+| 全文搜索 | 有（plainto_tsquery + ts_rank） | 无 |
+| 多对多关联 | 有（film_actor, film_category） | 无 |
+| helpers.go 复杂度 | 高（numeric, rating, year, text[] 等） | 低（Text, Date, Timestamptz, boolToActive） |
+| Repository 方法总数 | 31（17+7+4+3） | 20（8+6+3+3） |
+| Service RPC 总数 | 22（12+6+2+2） | 15（6+5+2+2） |
+
+#### Customer Service 文件清单
+
+```
+cmd/customer-service/
+└── main.go                              # 服务入口、依赖注入、graceful shutdown
+
+internal/customer/
+├── config/
+│   └── config.go                        # 环境变量配置（端口默认 50053）
+├── handler/
+│   ├── convert.go                       # proto ↔ 领域模型转换、错误映射
+│   ├── customer_handler.go              # CustomerService gRPC 实现（6 RPCs）
+│   ├── address_handler.go               # AddressService gRPC 实现（5 RPCs）
+│   ├── city_handler.go                  # CityService gRPC 实现（2 RPCs）
+│   └── country_handler.go              # CountryService gRPC 实现（2 RPCs）
+├── model/
+│   └── model.go                         # Customer, CustomerDetail, Address, City, Country
+├── repository/
+│   ├── customer_repository.go           # CustomerRepository 接口 + pgx 实现（8 方法）
+│   ├── address_repository.go            # AddressRepository 接口 + pgx 实现（6 方法）
+│   ├── city_repository.go               # CityRepository 接口（只读，3 方法）
+│   ├── country_repository.go            # CountryRepository 接口（只读，3 方法）
+│   ├── helpers.go                       # pgtype 转换辅助（Text, Date, Timestamptz, boolToActive）
+│   └── sqlcgen/                         # sqlc 自动生成（勿手动修改）
+│       ├── db.go
+│       ├── models.go
+│       ├── customer.sql.go
+│       ├── address.sql.go
+│       ├── city.sql.go
+│       └── country.sql.go
+└── service/
+    ├── errors.go                        # ErrNotFound, ErrInvalidArgument, ErrAlreadyExists, ErrForeignKey
+    ├── pgutil.go                        # isUniqueViolation + isForeignKeyViolation
+    ├── pagination.go                    # clampPagination
+    ├── customer_service.go              # Customer 业务逻辑（含链式数据聚合）
+    ├── address_service.go               # Address 业务逻辑（含 city 存在性校验）
+    ├── city_service.go                  # City 业务逻辑（只读）
+    └── country_service.go              # Country 业务逻辑（只读）
+
+proto/customer/v1/
+└── customer.proto                       # 4 个 gRPC 服务定义
+
+gen/proto/customer/v1/
+├── customer.pb.go                       # protobuf 生成代码
+└── customer_grpc.pb.go                  # gRPC 生成代码
+
+sql/queries/customer/
+├── customer.sql                         # Customer 表查询（含按门店过滤）
+├── address.sql                          # Address 表查询
+├── city.sql                             # City 表查询（只读）
+└── country.sql                          # Country 表查询（只读）
+```
+
+#### 服务端口汇总
+
+| 服务 | 端口 | 状态 |
+|------|------|------|
+| store-service | 50051 | 已完成 |
+| film-service | 50052 | 已完成 |
+| customer-service | 50053 | 已完成 |
+| rental-service | 50054 | 待实现 |
+| payment-service | 50055 | 待实现 |
+
+---
+
+*状态：Customer Service 实施完成 —— 准备实施下一个微服务（rental-service 或 payment-service）*
