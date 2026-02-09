@@ -1489,4 +1489,216 @@ sql/queries/rental/
 
 ---
 
-*状态：Rental Service 实施完成 —— 准备实施最后一个核心微服务（payment-service）*
+*状态：Rental Service 实施完成*
+
+---
+
+### 阶段 6：Payment Service 实施
+
+**用户**：继续实现 payment-service。
+
+**助手**：选择 payment-service 作为第五个（也是最后一个）核心微服务。原因：payment 是 FK 图中的叶子节点（无其他表引用 payment），依赖 rental/customer/staff 表，逻辑上应最后实现。管理 `payment` 单张分区表（按月范围分区），涉及金额处理（numeric(5,2)）、跨表数据聚合、日期范围查询（利用分区裁剪）。
+
+#### 关键设计决策
+
+1. **单个 gRPC 服务**：PaymentService（8 RPCs），端口 50055 — 是所有核心服务中最简单的 main（1 repo → 1 service → 1 handler）
+2. **GetPayment 返回 PaymentDetail**：聚合 customer_name、staff_name、rental_date，减少 BFF 调用轮次
+3. **不提供 UpdatePayment**：财务记录不可变，仅支持 Create/Delete
+4. **amount 用 string**：numeric(5,2) 在 proto/Go 模型中均为 string，复用 film-service 的 numericToString/stringToNumeric（big.Float 精确转换）
+5. **ListPaymentsByDateRange**：payment 独有的日期范围查询，半开区间 `[start, end)` 利用 PG 分区裁剪
+6. **跨表查询用 SQL**：GetCustomerName、GetStaffName（均为 interface{} 类型断言）、GetRentalDate，同 rental-service 模式
+7. **DeletePayment 无 FK 顾虑**：payment 是叶子表，无其他表引用，删除不会触发 FK 违约
+8. **分区透明**：sqlc 查询对分区表透明操作，PG 自动路由分区，Go 代码无需特殊处理
+9. **CreatePayment 用 `now()`**：payment_date 由服务器生成，确保正确的分区路由和时间一致性
+10. **所有 List 排序**：`ORDER BY payment_date DESC, payment_id DESC` — 最新交易优先，符合财务记录自然顺序
+
+#### 分区表特殊说明
+
+```sql
+CREATE TABLE public.payment (
+    payment_id integer NOT NULL,
+    customer_id integer NOT NULL,  -- FK → customer ON DELETE RESTRICT
+    staff_id integer NOT NULL,     -- FK → staff ON DELETE RESTRICT
+    rental_id integer NOT NULL,    -- FK → rental ON DELETE RESTRICT
+    amount numeric(5,2) NOT NULL,  -- 最大 $999.99
+    payment_date timestamptz NOT NULL,
+    PRIMARY KEY (payment_date, payment_id)  -- 复合主键
+) PARTITION BY RANGE (payment_date);
+```
+
+- 7 个月度分区：payment_p2022_01 ~ payment_p2022_07
+- 每个分区有 customer_id 和 staff_id 索引
+- 复合主键 (payment_date, payment_id)，按 payment_id 单字段查询仍可工作（PG 扫描所有分区的 PK 索引）
+
+#### Step 1：Proto 定义 + SQL 查询 + 工具配置
+
+**新增文件：**
+
+1. **`proto/payment/v1/payment.proto`** — 单个 gRPC 服务定义
+   - `PaymentService`：GetPayment、ListPayments、ListPaymentsByCustomer、ListPaymentsByStaff、ListPaymentsByRental、ListPaymentsByDateRange、CreatePayment、DeletePayment（8 RPCs）
+   - 消息类型：Payment（amount=string）、PaymentDetail（含 customer_name/staff_name/rental_date）
+   - `ListPaymentsByDateRangeRequest` 含 start_date/end_date（google.protobuf.Timestamp）
+   - `CreatePaymentRequest` 无 payment_date（服务器 `now()` 生成）
+
+2. **`sql/queries/payment/payment.sql`** — 17 个查询
+   - Get/List/Count（基础 CRUD）
+   - ListByCustomer/CountByCustomer、ListByStaff/CountByStaff、ListByRental/CountByRental
+   - ListByDateRange/CountByDateRange（`payment_date >= $1 AND payment_date < $2`，半开区间）
+   - CreatePayment（`payment_date = now()`）/ DeletePayment
+   - GetCustomerName、GetStaffName（跨表，`first_name || ' ' || last_name` → interface{}）
+   - GetRentalDate（跨表，从 rental 获取 rental_date → pgtype.Timestamptz）
+
+**修改文件：**
+- `sqlc.yaml` — 新增 payment sql block（第 5 个 sql block）
+- `Makefile` — 添加 `run-payment` target
+
+#### Step 2：运行代码生成
+
+- `make proto-gen` → `gen/proto/payment/v1/payment.pb.go` + `payment_grpc.pb.go`
+- `make sqlc-gen` → `internal/payment/repository/sqlcgen/` 下 3 个文件（db.go, models.go, payment.sql.go）
+- sqlcgen 模型：Payment.Amount = `pgtype.Numeric`，PaymentDate = `pgtype.Timestamptz`
+- sqlc 为分区表生成了 7 个 PaymentP2022XX 结构体（每个分区一个），但查询只操作父表 Payment
+- DateRange 参数：`PaymentDate pgtype.Timestamptz` + `PaymentDate_2 pgtype.Timestamptz`（sqlc 自动命名）
+- GetCustomerName / GetStaffName 返回 `interface{}`，GetRentalDate 返回 `pgtype.Timestamptz`
+- 验证前 4 个服务编译不受影响
+
+#### Step 3：Repository 层
+
+**新增文件：**
+
+1. **`internal/payment/model/model.go`** — 领域模型
+   - `Payment`：PaymentID, CustomerID, StaffID, RentalID, Amount(string), PaymentDate(time.Time)
+   - `PaymentDetail`：嵌入 Payment + CustomerName, StaffName, RentalDate(time.Time, 零值=未找到)
+   - 注意：Payment 表无 LastUpdate 列（与其他表不同）
+
+2. **`internal/payment/repository/helpers.go`** — 类型转换辅助
+   - `timestamptzToTime`（同 rental-service）
+   - `timeToTimestamptz`（新增，用于 DateRange 参数 time.Time → pgtype.Timestamptz 转换）
+   - `numericToString` / `stringToNumeric` / `max32`（从 film-service 复制，big.Float 精确转换）
+
+3. **`internal/payment/repository/payment_repository.go`**
+   - 接口 `PaymentRepository`（16 个方法）
+   - `CreatePaymentParams` 参数结构体（CustomerID, StaffID, RentalID, Amount string）
+   - `toPaymentModel` 用 `numericToString(row.Amount)` 转换金额
+   - `GetCustomerName` / `GetStaffName` 处理 interface{} → string 类型断言
+   - `GetRentalDate` 返回 `timestamptzToTime(ts)` 
+   - `ListPaymentsByDateRange` / `CountPaymentsByDateRange` 用 `timeToTimestamptz()` 转换参数
+
+#### Step 4：Service 层
+
+**新增文件：**
+
+1. **`internal/payment/service/errors.go`** — 四个哨兵错误（同前四个服务模式）
+
+2. **`internal/payment/service/pgutil.go`** — isUniqueViolation + isForeignKeyViolation
+
+3. **`internal/payment/service/pagination.go`** — clampPagination
+
+4. **`internal/payment/service/payment_service.go`**
+   - `PaymentService` 持有单个 repo（最简单的服务依赖）
+   - GetPayment：获取 payment 后聚合 customer_name（GetCustomerName）+ staff_name（GetStaffName）+ rental_date（GetRentalDate）→ PaymentDetail；聚合失败不阻断（同 rental-service 模式）
+   - CreatePayment：校验 customer_id/staff_id/rental_id > 0，amount 非空；FK 违约 → ErrInvalidArgument
+   - DeletePayment：先验证存在再删除（无 FK 顾虑，payment 是叶子表）
+   - ListPaymentsByDateRange：校验 start_date < end_date 且均非零值
+   - 五种 List 查询各带分页和总数
+
+#### Step 5：Handler 层
+
+**新增文件：**
+
+1. **`internal/payment/handler/convert.go`**
+   - `toGRPCError()`：同前四个服务模式
+   - `paymentToProto()`：amount 直接作为 string 传递，payment_date 用 `timestamppb.New()`
+   - `paymentDetailToProto()`：rental_date 零值判断（`!d.RentalDate.IsZero()` → 设置 Timestamp，否则 nil）
+
+2. **`internal/payment/handler/payment_handler.go`** — 8 个 RPC 实现 + `toPaymentListResponse()` 辅助
+   - `ListPaymentsByDateRange`：handler 层检查 nil Timestamp（`req.GetStartDate() == nil` → InvalidArgument），然后 `.AsTime()` 转换
+   - 这是所有服务中唯一需要在 handler 层处理 proto Timestamp → time.Time 输入转换的 RPC
+
+#### Step 6：Main 入口 + 配置
+
+**新增文件：**
+
+1. **`internal/payment/config/config.go`** — DATABASE_URL（必填）, GRPC_PORT（默认 "50055"）, LOG_LEVEL
+
+2. **`cmd/payment-service/main.go`**
+   - 最简单的 main：1 repo → 1 service → 1 handler
+   - gRPC server 注册 1 个服务
+   - Health check 注册 1 个服务状态
+   - Reflection + graceful shutdown
+
+**Git 提交**：`feat(payment-service): implement payment gRPC service`
+
+#### 与前四个服务的对比
+
+| 维度 | store | film | customer | rental | payment |
+|------|-------|------|----------|--------|---------|
+| 表数量 | 2 | 6（含 2 关联表） | 4 | 2 | 1（分区表） |
+| gRPC 服务数 | 2 | 4 | 4 | 2 | 1 |
+| RPC 总数 | 13 | 22 | 15 | 16 | 8 |
+| Repository 方法数 | 20 | 31 | 20 | 26 | 16 |
+| 数据聚合 | 无 | 扇出式 | 链式 | 扇出式(SQL) | 扇出式(SQL) |
+| 特殊业务逻辑 | soft delete | 全文搜索、多对多 | 双字段同步 | 库存可用性 | 不可变记录 |
+| 特殊类型处理 | 无 | ENUM,DOMAIN,ARRAY,Numeric | boolToActive | interface{} | Numeric + interface{} |
+| 独有特性 | 循环 FK | 全文搜索 | 层级聚合 | 跨表查询 | 分区表、日期范围 |
+
+#### Payment Service 文件清单
+
+```
+cmd/payment-service/
+└── main.go                              # 服务入口（最简 main：1 repo → 1 svc → 1 handler）
+
+internal/payment/
+├── config/
+│   └── config.go                        # 环境变量配置（端口默认 50055）
+├── handler/
+│   ├── convert.go                       # proto ↔ 领域模型转换、错误映射
+│   └── payment_handler.go              # PaymentService gRPC 实现（8 RPCs）
+├── model/
+│   └── model.go                         # Payment, PaymentDetail
+├── repository/
+│   ├── payment_repository.go            # PaymentRepository 接口 + pgx 实现（16 方法）
+│   ├── helpers.go                       # pgtype 转换辅助（timestamptz + numeric）
+│   └── sqlcgen/                         # sqlc 自动生成（勿手动修改）
+│       ├── db.go
+│       ├── models.go
+│       └── payment.sql.go
+└── service/
+    ├── errors.go                        # ErrNotFound, ErrInvalidArgument, ErrAlreadyExists, ErrForeignKey
+    ├── pgutil.go                        # isUniqueViolation + isForeignKeyViolation
+    ├── pagination.go                    # clampPagination
+    └── payment_service.go              # Payment 业务逻辑（含跨表聚合 + 日期范围校验）
+
+proto/payment/v1/
+└── payment.proto                        # 1 个 gRPC 服务定义
+
+gen/proto/payment/v1/
+├── payment.pb.go                        # protobuf 生成代码
+└── payment_grpc.pb.go                   # gRPC 生成代码
+
+sql/queries/payment/
+└── payment.sql                          # Payment 表查询（含跨表查询 + 日期范围）
+```
+
+#### 新增可复用模式（相比前四个服务）
+
+1. **分区表透明操作**：sqlc 查询对分区表无需特殊处理，PG 自动路由分区；复合 PK (payment_date, payment_id) 不影响按 payment_id 单字段查询
+2. **日期范围查询**：半开区间 `[start, end)` 是分区裁剪的最佳实践，handler 层处理 proto Timestamp 输入（nil 检查 + AsTime 转换）
+3. **不可变记录模式**：财务数据只允许 Create/Delete，不提供 Update，业务层面的设计约束
+4. **numeric 金额复用**：从 film-service 复制 numericToString/stringToNumeric，验证了跨服务的类型转换模式可复用性
+5. **最简 main 模式**：单 repo → 单 service → 单 handler，是所有核心服务中依赖最简单的
+
+#### 五个核心服务完成汇总
+
+| 服务 | 端口 | 表 | gRPC 服务数 | RPC 总数 | Repository 方法数 |
+|------|------|-----|-----------|---------|-----------------|
+| store-service | 50051 | store, staff | 2 | 13 | 20 |
+| film-service | 50052 | film, actor, category, language, film_actor, film_category | 4 | 22 | 31 |
+| customer-service | 50053 | customer, address, city, country | 4 | 15 | 20 |
+| rental-service | 50054 | rental, inventory | 2 | 16 | 26 |
+| payment-service | 50055 | payment | 1 | 8 | 16 |
+| **合计** | | **15 张表** | **13** | **74** | **113** |
+
+---
+
+*状态：全部 5 个核心微服务实施完成 —— 准备进入 BFF 层 + 公共模块实施阶段*
