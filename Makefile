@@ -1,20 +1,34 @@
 .PHONY: infra-up infra-down infra-logs infra-ps \
+       up down logs ps \
        proto-gen sqlc-gen generate \
        run-store run-film run-customer run-rental run-payment \
        run-customer-bff run-admin-bff \
        build-all test lint fmt
 
-# Infrastructure
+# Infrastructure (local dev: postgres + redis only)
 infra-up:
-	docker compose -f deployments/docker-compose.yml up -d
+	docker compose -f deployments/docker-compose.yml up -d postgres redis
 
 infra-down:
 	docker compose -f deployments/docker-compose.yml down
 
 infra-logs:
-	docker compose -f deployments/docker-compose.yml logs -f
+	docker compose -f deployments/docker-compose.yml logs -f postgres redis
 
 infra-ps:
+	docker compose -f deployments/docker-compose.yml ps
+
+# All services (docker)
+up:
+	docker compose -f deployments/docker-compose.yml up -d
+
+down:
+	docker compose -f deployments/docker-compose.yml down
+
+logs:
+	docker compose -f deployments/docker-compose.yml logs -f
+
+ps:
 	docker compose -f deployments/docker-compose.yml ps
 
 # Code generation

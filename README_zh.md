@@ -88,13 +88,13 @@ git clone https://github.com/enkaigaku/dvd-rental.git
 cd dvd-rental
 
 # 启动所有服务
-docker compose -f deployments/docker-compose.yml up -d
+make up
 
 # 确认所有服务运行正常
-docker compose -f deployments/docker-compose.yml ps
+make ps
 
 # 查看日志
-docker compose -f deployments/docker-compose.yml logs -f
+make logs
 ```
 
 启动后可通过以下地址访问：
@@ -171,11 +171,11 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 ### 停止服务
 
 ```bash
-# 停止 Docker 基础设施
+# 停止 Docker 基础设施（本地开发）
 make infra-down
 
 # 或停止全部（方式 A）
-docker compose -f deployments/docker-compose.yml down
+make down
 ```
 
 ## 项目结构
@@ -308,11 +308,17 @@ make test               # 运行测试（启用 race 检测）
 make lint               # 运行 golangci-lint
 make fmt                # 格式化代码（gofmt + goimports）
 
-# 基础设施（Docker）
+# 基础设施（本地开发，仅 PostgreSQL + Redis）
 make infra-up           # 启动 PostgreSQL + Redis
 make infra-down         # 停止基础设施
 make infra-logs         # 查看基础设施日志
 make infra-ps           # 查看基础设施状态
+
+# 全部服务（Docker）
+make up                 # 启动所有服务（基础设施 + gRPC + BFF）
+make down               # 停止所有服务
+make logs               # 查看所有日志
+make ps                 # 查看所有服务状态
 
 # 运行服务（本地）
 make run-store          # 启动门店服务

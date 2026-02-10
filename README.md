@@ -89,13 +89,13 @@ git clone https://github.com/enkaigaku/dvd-rental.git
 cd dvd-rental
 
 # Start all services
-docker compose -f deployments/docker-compose.yml up -d
+make up
 
 # Verify all services are running
-docker compose -f deployments/docker-compose.yml ps
+make ps
 
 # View logs
-docker compose -f deployments/docker-compose.yml logs -f
+make logs
 ```
 
 Once started, the APIs are available at:
@@ -172,11 +172,11 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 ### Stopping Services
 
 ```bash
-# Stop Docker infrastructure
+# Stop Docker infrastructure (local dev)
 make infra-down
 
 # Or stop everything (if using Option A)
-docker compose -f deployments/docker-compose.yml down
+make down
 ```
 
 ## Project Structure
@@ -309,11 +309,17 @@ make test               # Run tests with race detector
 make lint               # Run golangci-lint
 make fmt                # Format code (gofmt + goimports)
 
-# Infrastructure (Docker)
+# Infrastructure (local dev, PostgreSQL + Redis only)
 make infra-up           # Start PostgreSQL + Redis
 make infra-down         # Stop infrastructure
 make infra-logs         # Tail infrastructure logs
 make infra-ps           # Show infrastructure status
+
+# All services (Docker)
+make up                 # Start all services (infra + gRPC + BFF)
+make down               # Stop all services
+make logs               # Tail all logs
+make ps                 # Show all service status
 
 # Run services (local)
 make run-store          # Start store-service

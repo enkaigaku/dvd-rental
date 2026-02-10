@@ -88,13 +88,13 @@ git clone https://github.com/enkaigaku/dvd-rental.git
 cd dvd-rental
 
 # 全サービスを起動
-docker compose -f deployments/docker-compose.yml up -d
+make up
 
 # 全サービスの稼働状況を確認
-docker compose -f deployments/docker-compose.yml ps
+make ps
 
 # ログを確認
-docker compose -f deployments/docker-compose.yml logs -f
+make logs
 ```
 
 起動後、以下のアドレスでアクセス可能です：
@@ -171,11 +171,11 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 ### サービスの停止
 
 ```bash
-# Docker インフラを停止
+# Docker インフラを停止（ローカル開発）
 make infra-down
 
 # または全サービスを停止（方法 A の場合）
-docker compose -f deployments/docker-compose.yml down
+make down
 ```
 
 ## プロジェクト構成
@@ -308,11 +308,17 @@ make test               # テスト実行（race 検出器有効）
 make lint               # golangci-lint 実行
 make fmt                # コードフォーマット（gofmt + goimports）
 
-# インフラ（Docker）
+# インフラ（ローカル開発、PostgreSQL + Redis のみ）
 make infra-up           # PostgreSQL + Redis を起動
 make infra-down         # インフラを停止
 make infra-logs         # インフラログを表示
 make infra-ps           # インフラ状況を表示
+
+# 全サービス（Docker）
+make up                 # 全サービスを起動（インフラ + gRPC + BFF）
+make down               # 全サービスを停止
+make logs               # 全ログを表示
+make ps                 # 全サービス状況を表示
 
 # サービス起動（ローカル）
 make run-store          # 店舗サービスを起動
