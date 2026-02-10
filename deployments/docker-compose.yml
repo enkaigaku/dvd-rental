@@ -50,8 +50,8 @@ services:
       context: ..
       dockerfile: deployments/dockerfiles/store-service.Dockerfile
     container_name: dvd-rental-store-service
-    ports:
-      - "50051:50051"
+    expose:
+      - "50051"
     environment:
       DATABASE_URL: postgres://dvdrental:dvdrental@postgres:5432/dvdrental?sslmode=disable
       GRPC_PORT: "50051"
@@ -65,8 +65,8 @@ services:
       context: ..
       dockerfile: deployments/dockerfiles/film-service.Dockerfile
     container_name: dvd-rental-film-service
-    ports:
-      - "50052:50052"
+    expose:
+      - "50052"
     environment:
       DATABASE_URL: postgres://dvdrental:dvdrental@postgres:5432/dvdrental?sslmode=disable
       GRPC_PORT: "50052"
@@ -80,8 +80,8 @@ services:
       context: ..
       dockerfile: deployments/dockerfiles/customer-service.Dockerfile
     container_name: dvd-rental-customer-service
-    ports:
-      - "50053:50053"
+    expose:
+      - "50053"
     environment:
       DATABASE_URL: postgres://dvdrental:dvdrental@postgres:5432/dvdrental?sslmode=disable
       GRPC_PORT: "50053"
@@ -95,8 +95,8 @@ services:
       context: ..
       dockerfile: deployments/dockerfiles/rental-service.Dockerfile
     container_name: dvd-rental-rental-service
-    ports:
-      - "50054:50054"
+    expose:
+      - "50054"
     environment:
       DATABASE_URL: postgres://dvdrental:dvdrental@postgres:5432/dvdrental?sslmode=disable
       GRPC_PORT: "50054"
@@ -110,8 +110,8 @@ services:
       context: ..
       dockerfile: deployments/dockerfiles/payment-service.Dockerfile
     container_name: dvd-rental-payment-service
-    ports:
-      - "50055:50055"
+    expose:
+      - "50055"
     environment:
       DATABASE_URL: postgres://dvdrental:dvdrental@postgres:5432/dvdrental?sslmode=disable
       GRPC_PORT: "50055"
