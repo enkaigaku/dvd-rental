@@ -5,7 +5,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**[English](README.md)** | **[日本語](README.ja.md)**
+**[English](README.md)** | **[日本語](README_ja.md)**
 
 ## 系统架构
 

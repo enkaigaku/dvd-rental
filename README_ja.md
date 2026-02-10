@@ -5,7 +5,7 @@ Go、gRPC、PostgreSQL で構築されたマイクロサービスベースの DV
 [![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**[English](README.md)** | **[中文文档](README.zh-CN.md)**
+**[English](README.md)** | **[中文文档](README_zh.md)**
 
 ## アーキテクチャ
 

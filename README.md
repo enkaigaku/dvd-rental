@@ -5,7 +5,7 @@ A microservices-based DVD rental system built with Go, gRPC, and PostgreSQL.
 [![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**[中文文档](README.zh-CN.md)** | **[日本語ドキュメント](README.ja.md)**
+**[中文文档](README_zh.md)** | **[日本語ドキュメント](README_ja.md)**
 
 ## Architecture
 
