@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/store/model"
-	"github.com/enkaigaku/dvd-rental/internal/store/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/store"
 )
 
 // StaffRepository defines the data access interface for staff members.
@@ -54,12 +54,12 @@ type UpdateStaffParams struct {
 }
 
 type staffRepository struct {
-	q *sqlcgen.Queries
+	q *storesqlc.Queries
 }
 
 // NewStaffRepository creates a new StaffRepository backed by PostgreSQL.
 func NewStaffRepository(pool *pgxpool.Pool) StaffRepository {
-	return &staffRepository{q: sqlcgen.New(pool)}
+	return &staffRepository{q: storesqlc.New(pool)}
 }
 
 func (r *staffRepository) GetStaff(ctx context.Context, staffID int32) (model.Staff, error) {
@@ -107,7 +107,7 @@ func (r *staffRepository) GetStaffByUsername(ctx context.Context, username strin
 }
 
 func (r *staffRepository) ListStaff(ctx context.Context, limit, offset int32) ([]model.Staff, error) {
-	rows, err := r.q.ListStaff(ctx, sqlcgen.ListStaffParams{Limit: limit, Offset: offset})
+	rows, err := r.q.ListStaff(ctx, storesqlc.ListStaffParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return nil, fmt.Errorf("list staff: %w", err)
 	}
@@ -115,7 +115,7 @@ func (r *staffRepository) ListStaff(ctx context.Context, limit, offset int32) ([
 }
 
 func (r *staffRepository) ListActiveStaff(ctx context.Context, limit, offset int32) ([]model.Staff, error) {
-	rows, err := r.q.ListActiveStaff(ctx, sqlcgen.ListActiveStaffParams{Limit: limit, Offset: offset})
+	rows, err := r.q.ListActiveStaff(ctx, storesqlc.ListActiveStaffParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return nil, fmt.Errorf("list active staff: %w", err)
 	}
@@ -123,7 +123,7 @@ func (r *staffRepository) ListActiveStaff(ctx context.Context, limit, offset int
 }
 
 func (r *staffRepository) ListStaffByStore(ctx context.Context, storeID, limit, offset int32) ([]model.Staff, error) {
-	rows, err := r.q.ListStaffByStore(ctx, sqlcgen.ListStaffByStoreParams{
+	rows, err := r.q.ListStaffByStore(ctx, storesqlc.ListStaffByStoreParams{
 		StoreID: storeID,
 		Limit:   limit,
 		Offset:  offset,
@@ -135,7 +135,7 @@ func (r *staffRepository) ListStaffByStore(ctx context.Context, storeID, limit, 
 }
 
 func (r *staffRepository) ListActiveStaffByStore(ctx context.Context, storeID, limit, offset int32) ([]model.Staff, error) {
-	rows, err := r.q.ListActiveStaffByStore(ctx, sqlcgen.ListActiveStaffByStoreParams{
+	rows, err := r.q.ListActiveStaffByStore(ctx, storesqlc.ListActiveStaffByStoreParams{
 		StoreID: storeID,
 		Limit:   limit,
 		Offset:  offset,
@@ -179,7 +179,7 @@ func (r *staffRepository) CountActiveStaffByStore(ctx context.Context, storeID i
 }
 
 func (r *staffRepository) CreateStaff(ctx context.Context, params CreateStaffParams) (model.Staff, error) {
-	row, err := r.q.CreateStaff(ctx, sqlcgen.CreateStaffParams{
+	row, err := r.q.CreateStaff(ctx, storesqlc.CreateStaffParams{
 		FirstName:    params.FirstName,
 		LastName:     params.LastName,
 		AddressID:    params.AddressID,
@@ -195,7 +195,7 @@ func (r *staffRepository) CreateStaff(ctx context.Context, params CreateStaffPar
 }
 
 func (r *staffRepository) UpdateStaff(ctx context.Context, params UpdateStaffParams) (model.Staff, error) {
-	row, err := r.q.UpdateStaff(ctx, sqlcgen.UpdateStaffParams{
+	row, err := r.q.UpdateStaff(ctx, storesqlc.UpdateStaffParams{
 		StaffID:   params.StaffID,
 		FirstName: params.FirstName,
 		LastName:  params.LastName,
@@ -225,7 +225,7 @@ func (r *staffRepository) DeactivateStaff(ctx context.Context, staffID int32) (m
 }
 
 func (r *staffRepository) UpdateStaffPassword(ctx context.Context, staffID int32, passwordHash string) error {
-	if err := r.q.UpdateStaffPassword(ctx, sqlcgen.UpdateStaffPasswordParams{
+	if err := r.q.UpdateStaffPassword(ctx, storesqlc.UpdateStaffPasswordParams{
 		StaffID:      staffID,
 		PasswordHash: stringToText(passwordHash),
 	}); err != nil {
@@ -250,7 +250,7 @@ func stringToText(s string) pgtype.Text {
 	return pgtype.Text{String: s, Valid: true}
 }
 
-func toStaffListFromListRows(rows []sqlcgen.ListStaffRow) []model.Staff {
+func toStaffListFromListRows(rows []storesqlc.ListStaffRow) []model.Staff {
 	staff := make([]model.Staff, len(rows))
 	for i, r := range rows {
 		staff[i] = model.Staff{
@@ -268,7 +268,7 @@ func toStaffListFromListRows(rows []sqlcgen.ListStaffRow) []model.Staff {
 	return staff
 }
 
-func toStaffListFromActiveRows(rows []sqlcgen.ListActiveStaffRow) []model.Staff {
+func toStaffListFromActiveRows(rows []storesqlc.ListActiveStaffRow) []model.Staff {
 	staff := make([]model.Staff, len(rows))
 	for i, r := range rows {
 		staff[i] = model.Staff{
@@ -286,7 +286,7 @@ func toStaffListFromActiveRows(rows []sqlcgen.ListActiveStaffRow) []model.Staff 
 	return staff
 }
 
-func toStaffListFromByStoreRows(rows []sqlcgen.ListStaffByStoreRow) []model.Staff {
+func toStaffListFromByStoreRows(rows []storesqlc.ListStaffByStoreRow) []model.Staff {
 	staff := make([]model.Staff, len(rows))
 	for i, r := range rows {
 		staff[i] = model.Staff{
@@ -304,7 +304,7 @@ func toStaffListFromByStoreRows(rows []sqlcgen.ListStaffByStoreRow) []model.Staf
 	return staff
 }
 
-func toStaffListFromActiveByStoreRows(rows []sqlcgen.ListActiveStaffByStoreRow) []model.Staff {
+func toStaffListFromActiveByStoreRows(rows []storesqlc.ListActiveStaffByStoreRow) []model.Staff {
 	staff := make([]model.Staff, len(rows))
 	for i, r := range rows {
 		staff[i] = model.Staff{
@@ -322,7 +322,7 @@ func toStaffListFromActiveByStoreRows(rows []sqlcgen.ListActiveStaffByStoreRow) 
 	return staff
 }
 
-func staffFromCreateRow(r sqlcgen.CreateStaffRow) model.Staff {
+func staffFromCreateRow(r storesqlc.CreateStaffRow) model.Staff {
 	return model.Staff{
 		StaffID:    r.StaffID,
 		FirstName:  r.FirstName,
@@ -336,7 +336,7 @@ func staffFromCreateRow(r sqlcgen.CreateStaffRow) model.Staff {
 	}
 }
 
-func staffFromUpdateRow(r sqlcgen.UpdateStaffRow) model.Staff {
+func staffFromUpdateRow(r storesqlc.UpdateStaffRow) model.Staff {
 	return model.Staff{
 		StaffID:    r.StaffID,
 		FirstName:  r.FirstName,
@@ -350,7 +350,7 @@ func staffFromUpdateRow(r sqlcgen.UpdateStaffRow) model.Staff {
 	}
 }
 
-func staffFromDeactivateRow(r sqlcgen.DeactivateStaffRow) model.Staff {
+func staffFromDeactivateRow(r storesqlc.DeactivateStaffRow) model.Staff {
 	return model.Staff{
 		StaffID:    r.StaffID,
 		FirstName:  r.FirstName,

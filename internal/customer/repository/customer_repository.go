@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/customer/model"
-	"github.com/enkaigaku/dvd-rental/internal/customer/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/customer"
 )
 
 // ErrNotFound is returned when a queried entity does not exist.
@@ -51,12 +51,12 @@ type CustomerRepository interface {
 }
 
 type customerRepository struct {
-	q *sqlcgen.Queries
+	q *customersqlc.Queries
 }
 
 // NewCustomerRepository creates a new CustomerRepository.
 func NewCustomerRepository(pool *pgxpool.Pool) CustomerRepository {
-	return &customerRepository{q: sqlcgen.New(pool)}
+	return &customerRepository{q: customersqlc.New(pool)}
 }
 
 func (r *customerRepository) GetCustomer(ctx context.Context, customerID int32) (model.Customer, error) {
@@ -86,7 +86,7 @@ func (r *customerRepository) GetCustomerByEmail(ctx context.Context, email strin
 }
 
 func (r *customerRepository) ListCustomers(ctx context.Context, limit, offset int32) ([]model.Customer, error) {
-	rows, err := r.q.ListCustomers(ctx, sqlcgen.ListCustomersParams{
+	rows, err := r.q.ListCustomers(ctx, customersqlc.ListCustomersParams{
 		Limit:  limit,
 		Offset: offset,
 	})
@@ -110,7 +110,7 @@ func (r *customerRepository) CountCustomers(ctx context.Context) (int64, error) 
 }
 
 func (r *customerRepository) ListCustomersByStore(ctx context.Context, storeID, limit, offset int32) ([]model.Customer, error) {
-	rows, err := r.q.ListCustomersByStore(ctx, sqlcgen.ListCustomersByStoreParams{
+	rows, err := r.q.ListCustomersByStore(ctx, customersqlc.ListCustomersByStoreParams{
 		StoreID: storeID,
 		Limit:   limit,
 		Offset:  offset,
@@ -135,7 +135,7 @@ func (r *customerRepository) CountCustomersByStore(ctx context.Context, storeID 
 }
 
 func (r *customerRepository) CreateCustomer(ctx context.Context, params CreateCustomerParams) (model.Customer, error) {
-	row, err := r.q.CreateCustomer(ctx, sqlcgen.CreateCustomerParams{
+	row, err := r.q.CreateCustomer(ctx, customersqlc.CreateCustomerParams{
 		StoreID:    params.StoreID,
 		FirstName:  params.FirstName,
 		LastName:   params.LastName,
@@ -152,7 +152,7 @@ func (r *customerRepository) CreateCustomer(ctx context.Context, params CreateCu
 }
 
 func (r *customerRepository) UpdateCustomer(ctx context.Context, params UpdateCustomerParams) (model.Customer, error) {
-	row, err := r.q.UpdateCustomer(ctx, sqlcgen.UpdateCustomerParams{
+	row, err := r.q.UpdateCustomer(ctx, customersqlc.UpdateCustomerParams{
 		CustomerID: params.CustomerID,
 		StoreID:    params.StoreID,
 		FirstName:  params.FirstName,

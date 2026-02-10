@@ -5,8 +5,8 @@ sql:
     schema: "migrations"
     gen:
       go:
-        package: "sqlcgen"
-        out: "internal/store/repository/sqlcgen"
+        package: "storesqlc"
+        out: "gen/sqlc/store"
         sql_package: "pgx/v5"
         emit_json_tags: true
         emit_empty_slices: true
@@ -15,8 +15,8 @@ sql:
     schema: "migrations"
     gen:
       go:
-        package: "sqlcgen"
-        out: "internal/film/repository/sqlcgen"
+        package: "filmsqlc"
+        out: "gen/sqlc/film"
         sql_package: "pgx/v5"
         emit_json_tags: true
         emit_empty_slices: true
@@ -25,8 +25,8 @@ sql:
     schema: "migrations"
     gen:
       go:
-        package: "sqlcgen"
-        out: "internal/customer/repository/sqlcgen"
+        package: "customersqlc"
+        out: "gen/sqlc/customer"
         sql_package: "pgx/v5"
         emit_json_tags: true
         emit_empty_slices: true
@@ -35,8 +35,8 @@ sql:
     schema: "migrations"
     gen:
       go:
-        package: "sqlcgen"
-        out: "internal/rental/repository/sqlcgen"
+        package: "rentalsqlc"
+        out: "gen/sqlc/rental"
         sql_package: "pgx/v5"
         emit_json_tags: true
         emit_empty_slices: true
@@ -45,8 +45,8 @@ sql:
     schema: "migrations"
     gen:
       go:
-        package: "sqlcgen"
-        out: "internal/payment/repository/sqlcgen"
+        package: "paymentsqlc"
+        out: "gen/sqlc/payment"
         sql_package: "pgx/v5"
         emit_json_tags: true
         emit_empty_slices: true

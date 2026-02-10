@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/customer/model"
-	"github.com/enkaigaku/dvd-rental/internal/customer/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/customer"
 )
 
 // CountryRepository defines read-only data-access operations for countries.
@@ -20,12 +20,12 @@ type CountryRepository interface {
 }
 
 type countryRepository struct {
-	q *sqlcgen.Queries
+	q *customersqlc.Queries
 }
 
 // NewCountryRepository creates a new CountryRepository.
 func NewCountryRepository(pool *pgxpool.Pool) CountryRepository {
-	return &countryRepository{q: sqlcgen.New(pool)}
+	return &countryRepository{q: customersqlc.New(pool)}
 }
 
 func (r *countryRepository) GetCountry(ctx context.Context, countryID int32) (model.Country, error) {
@@ -40,7 +40,7 @@ func (r *countryRepository) GetCountry(ctx context.Context, countryID int32) (mo
 }
 
 func (r *countryRepository) ListCountries(ctx context.Context, limit, offset int32) ([]model.Country, error) {
-	rows, err := r.q.ListCountries(ctx, sqlcgen.ListCountriesParams{
+	rows, err := r.q.ListCountries(ctx, customersqlc.ListCountriesParams{
 		Limit:  limit,
 		Offset: offset,
 	})
@@ -62,7 +62,7 @@ func (r *countryRepository) CountCountries(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-func toCountryModel(c sqlcgen.Country) model.Country {
+func toCountryModel(c customersqlc.Country) model.Country {
 	return model.Country{
 		CountryID:  c.CountryID,
 		Country:    c.Country,

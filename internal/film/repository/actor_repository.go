@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/film/model"
-	"github.com/enkaigaku/dvd-rental/internal/film/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/film"
 )
 
 // ActorRepository defines the data access interface for actors.
@@ -24,12 +24,12 @@ type ActorRepository interface {
 }
 
 type actorRepository struct {
-	q *sqlcgen.Queries
+	q *filmsqlc.Queries
 }
 
 // NewActorRepository creates a new ActorRepository backed by PostgreSQL.
 func NewActorRepository(pool *pgxpool.Pool) ActorRepository {
-	return &actorRepository{q: sqlcgen.New(pool)}
+	return &actorRepository{q: filmsqlc.New(pool)}
 }
 
 func (r *actorRepository) GetActor(ctx context.Context, actorID int32) (model.Actor, error) {
@@ -44,7 +44,7 @@ func (r *actorRepository) GetActor(ctx context.Context, actorID int32) (model.Ac
 }
 
 func (r *actorRepository) ListActors(ctx context.Context, limit, offset int32) ([]model.Actor, error) {
-	rows, err := r.q.ListActors(ctx, sqlcgen.ListActorsParams{Limit: limit, Offset: offset})
+	rows, err := r.q.ListActors(ctx, filmsqlc.ListActorsParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return nil, fmt.Errorf("list actors: %w", err)
 	}
@@ -68,7 +68,7 @@ func (r *actorRepository) ListActorsByFilm(ctx context.Context, filmID int32) ([
 }
 
 func (r *actorRepository) CreateActor(ctx context.Context, firstName, lastName string) (model.Actor, error) {
-	row, err := r.q.CreateActor(ctx, sqlcgen.CreateActorParams{
+	row, err := r.q.CreateActor(ctx, filmsqlc.CreateActorParams{
 		FirstName: firstName,
 		LastName:  lastName,
 	})
@@ -79,7 +79,7 @@ func (r *actorRepository) CreateActor(ctx context.Context, firstName, lastName s
 }
 
 func (r *actorRepository) UpdateActor(ctx context.Context, actorID int32, firstName, lastName string) (model.Actor, error) {
-	row, err := r.q.UpdateActor(ctx, sqlcgen.UpdateActorParams{
+	row, err := r.q.UpdateActor(ctx, filmsqlc.UpdateActorParams{
 		ActorID:   actorID,
 		FirstName: firstName,
 		LastName:  lastName,
@@ -102,7 +102,7 @@ func (r *actorRepository) DeleteActor(ctx context.Context, actorID int32) error 
 
 // --- row to model conversions ---
 
-func toActorModel(r sqlcgen.Actor) model.Actor {
+func toActorModel(r filmsqlc.Actor) model.Actor {
 	return model.Actor{
 		ActorID:    r.ActorID,
 		FirstName:  r.FirstName,
@@ -111,7 +111,7 @@ func toActorModel(r sqlcgen.Actor) model.Actor {
 	}
 }
 
-func toActorModels(rows []sqlcgen.Actor) []model.Actor {
+func toActorModels(rows []filmsqlc.Actor) []model.Actor {
 	actors := make([]model.Actor, len(rows))
 	for i, r := range rows {
 		actors[i] = toActorModel(r)

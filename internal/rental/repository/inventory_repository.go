@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/rental/model"
-	"github.com/enkaigaku/dvd-rental/internal/rental/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/rental"
 )
 
 // CreateInventoryParams holds parameters for creating an inventory item.
@@ -34,12 +34,12 @@ type InventoryRepository interface {
 }
 
 type inventoryRepository struct {
-	q *sqlcgen.Queries
+	q *rentalsqlc.Queries
 }
 
 // NewInventoryRepository creates a new InventoryRepository.
 func NewInventoryRepository(pool *pgxpool.Pool) InventoryRepository {
-	return &inventoryRepository{q: sqlcgen.New(pool)}
+	return &inventoryRepository{q: rentalsqlc.New(pool)}
 }
 
 func (r *inventoryRepository) GetInventory(ctx context.Context, inventoryID int32) (model.Inventory, error) {
@@ -54,7 +54,7 @@ func (r *inventoryRepository) GetInventory(ctx context.Context, inventoryID int3
 }
 
 func (r *inventoryRepository) ListInventory(ctx context.Context, limit, offset int32) ([]model.Inventory, error) {
-	rows, err := r.q.ListInventory(ctx, sqlcgen.ListInventoryParams{Limit: limit, Offset: offset})
+	rows, err := r.q.ListInventory(ctx, rentalsqlc.ListInventoryParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return nil, fmt.Errorf("list inventory: %w", err)
 	}
@@ -70,7 +70,7 @@ func (r *inventoryRepository) CountInventory(ctx context.Context) (int64, error)
 }
 
 func (r *inventoryRepository) ListInventoryByFilm(ctx context.Context, filmID, limit, offset int32) ([]model.Inventory, error) {
-	rows, err := r.q.ListInventoryByFilm(ctx, sqlcgen.ListInventoryByFilmParams{
+	rows, err := r.q.ListInventoryByFilm(ctx, rentalsqlc.ListInventoryByFilmParams{
 		FilmID: filmID, Limit: limit, Offset: offset,
 	})
 	if err != nil {
@@ -88,7 +88,7 @@ func (r *inventoryRepository) CountInventoryByFilm(ctx context.Context, filmID i
 }
 
 func (r *inventoryRepository) ListInventoryByStore(ctx context.Context, storeID, limit, offset int32) ([]model.Inventory, error) {
-	rows, err := r.q.ListInventoryByStore(ctx, sqlcgen.ListInventoryByStoreParams{
+	rows, err := r.q.ListInventoryByStore(ctx, rentalsqlc.ListInventoryByStoreParams{
 		StoreID: storeID, Limit: limit, Offset: offset,
 	})
 	if err != nil {
@@ -106,7 +106,7 @@ func (r *inventoryRepository) CountInventoryByStore(ctx context.Context, storeID
 }
 
 func (r *inventoryRepository) ListAvailableInventory(ctx context.Context, filmID, storeID, limit, offset int32) ([]model.Inventory, error) {
-	rows, err := r.q.ListAvailableInventory(ctx, sqlcgen.ListAvailableInventoryParams{
+	rows, err := r.q.ListAvailableInventory(ctx, rentalsqlc.ListAvailableInventoryParams{
 		FilmID: filmID, StoreID: storeID, Limit: limit, Offset: offset,
 	})
 	if err != nil {
@@ -116,7 +116,7 @@ func (r *inventoryRepository) ListAvailableInventory(ctx context.Context, filmID
 }
 
 func (r *inventoryRepository) CountAvailableInventory(ctx context.Context, filmID, storeID int32) (int64, error) {
-	count, err := r.q.CountAvailableInventory(ctx, sqlcgen.CountAvailableInventoryParams{
+	count, err := r.q.CountAvailableInventory(ctx, rentalsqlc.CountAvailableInventoryParams{
 		FilmID: filmID, StoreID: storeID,
 	})
 	if err != nil {
@@ -126,7 +126,7 @@ func (r *inventoryRepository) CountAvailableInventory(ctx context.Context, filmI
 }
 
 func (r *inventoryRepository) CreateInventory(ctx context.Context, params CreateInventoryParams) (model.Inventory, error) {
-	row, err := r.q.CreateInventory(ctx, sqlcgen.CreateInventoryParams{
+	row, err := r.q.CreateInventory(ctx, rentalsqlc.CreateInventoryParams{
 		FilmID:  params.FilmID,
 		StoreID: params.StoreID,
 	})
@@ -143,7 +143,7 @@ func (r *inventoryRepository) DeleteInventory(ctx context.Context, inventoryID i
 	return nil
 }
 
-func toInventoryModel(i sqlcgen.Inventory) model.Inventory {
+func toInventoryModel(i rentalsqlc.Inventory) model.Inventory {
 	return model.Inventory{
 		InventoryID: i.InventoryID,
 		FilmID:      i.FilmID,
@@ -152,7 +152,7 @@ func toInventoryModel(i sqlcgen.Inventory) model.Inventory {
 	}
 }
 
-func toInventoryModels(rows []sqlcgen.Inventory) []model.Inventory {
+func toInventoryModels(rows []rentalsqlc.Inventory) []model.Inventory {
 	items := make([]model.Inventory, len(rows))
 	for i, row := range rows {
 		items[i] = toInventoryModel(row)

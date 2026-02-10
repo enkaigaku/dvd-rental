@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/film/model"
-	"github.com/enkaigaku/dvd-rental/internal/film/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/film"
 )
 
 // LanguageRepository defines the read-only data access interface for languages.
@@ -20,12 +20,12 @@ type LanguageRepository interface {
 }
 
 type languageRepository struct {
-	q *sqlcgen.Queries
+	q *filmsqlc.Queries
 }
 
 // NewLanguageRepository creates a new LanguageRepository backed by PostgreSQL.
 func NewLanguageRepository(pool *pgxpool.Pool) LanguageRepository {
-	return &languageRepository{q: sqlcgen.New(pool)}
+	return &languageRepository{q: filmsqlc.New(pool)}
 }
 
 func (r *languageRepository) GetLanguage(ctx context.Context, languageID int32) (model.Language, error) {
@@ -58,7 +58,7 @@ func (r *languageRepository) CountLanguages(ctx context.Context) (int64, error) 
 // --- row to model conversions ---
 // language.name is character(20), space-padded — must trim.
 
-func toLanguageModel(r sqlcgen.Language) model.Language {
+func toLanguageModel(r filmsqlc.Language) model.Language {
 	return model.Language{
 		LanguageID: r.LanguageID,
 		Name:       trimLanguageName(r.Name),
@@ -66,7 +66,7 @@ func toLanguageModel(r sqlcgen.Language) model.Language {
 	}
 }
 
-func toLanguageModels(rows []sqlcgen.Language) []model.Language {
+func toLanguageModels(rows []filmsqlc.Language) []model.Language {
 	languages := make([]model.Language, len(rows))
 	for i, r := range rows {
 		languages[i] = toLanguageModel(r)

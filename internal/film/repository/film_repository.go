@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/film/model"
-	"github.com/enkaigaku/dvd-rental/internal/film/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/film"
 )
 
 // FilmRepository defines the data access interface for films.
@@ -64,12 +64,12 @@ type UpdateFilmParams struct {
 }
 
 type filmRepository struct {
-	q *sqlcgen.Queries
+	q *filmsqlc.Queries
 }
 
 // NewFilmRepository creates a new FilmRepository backed by PostgreSQL.
 func NewFilmRepository(pool *pgxpool.Pool) FilmRepository {
-	return &filmRepository{q: sqlcgen.New(pool)}
+	return &filmRepository{q: filmsqlc.New(pool)}
 }
 
 func (r *filmRepository) GetFilm(ctx context.Context, filmID int32) (model.Film, error) {
@@ -84,7 +84,7 @@ func (r *filmRepository) GetFilm(ctx context.Context, filmID int32) (model.Film,
 }
 
 func (r *filmRepository) ListFilms(ctx context.Context, limit, offset int32) ([]model.Film, error) {
-	rows, err := r.q.ListFilms(ctx, sqlcgen.ListFilmsParams{Limit: limit, Offset: offset})
+	rows, err := r.q.ListFilms(ctx, filmsqlc.ListFilmsParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return nil, fmt.Errorf("list films: %w", err)
 	}
@@ -100,7 +100,7 @@ func (r *filmRepository) CountFilms(ctx context.Context) (int64, error) {
 }
 
 func (r *filmRepository) SearchFilms(ctx context.Context, query string, limit, offset int32) ([]model.Film, error) {
-	rows, err := r.q.SearchFilms(ctx, sqlcgen.SearchFilmsParams{
+	rows, err := r.q.SearchFilms(ctx, filmsqlc.SearchFilmsParams{
 		PlaintoTsquery: query,
 		Limit:          limit,
 		Offset:         offset,
@@ -120,7 +120,7 @@ func (r *filmRepository) CountSearchFilms(ctx context.Context, query string) (in
 }
 
 func (r *filmRepository) ListFilmsByCategory(ctx context.Context, categoryID, limit, offset int32) ([]model.Film, error) {
-	rows, err := r.q.ListFilmsByCategory(ctx, sqlcgen.ListFilmsByCategoryParams{
+	rows, err := r.q.ListFilmsByCategory(ctx, filmsqlc.ListFilmsByCategoryParams{
 		CategoryID: categoryID,
 		Limit:      limit,
 		Offset:     offset,
@@ -140,7 +140,7 @@ func (r *filmRepository) CountFilmsByCategory(ctx context.Context, categoryID in
 }
 
 func (r *filmRepository) ListFilmsByActor(ctx context.Context, actorID, limit, offset int32) ([]model.Film, error) {
-	rows, err := r.q.ListFilmsByActor(ctx, sqlcgen.ListFilmsByActorParams{
+	rows, err := r.q.ListFilmsByActor(ctx, filmsqlc.ListFilmsByActorParams{
 		ActorID: actorID,
 		Limit:   limit,
 		Offset:  offset,
@@ -160,7 +160,7 @@ func (r *filmRepository) CountFilmsByActor(ctx context.Context, actorID int32) (
 }
 
 func (r *filmRepository) CreateFilm(ctx context.Context, params CreateFilmParams) (model.Film, error) {
-	row, err := r.q.CreateFilm(ctx, sqlcgen.CreateFilmParams{
+	row, err := r.q.CreateFilm(ctx, filmsqlc.CreateFilmParams{
 		Title:              params.Title,
 		Description:        stringToText(params.Description),
 		ReleaseYear:        yearFromInt32(params.ReleaseYear),
@@ -180,7 +180,7 @@ func (r *filmRepository) CreateFilm(ctx context.Context, params CreateFilmParams
 }
 
 func (r *filmRepository) UpdateFilm(ctx context.Context, params UpdateFilmParams) (model.Film, error) {
-	row, err := r.q.UpdateFilm(ctx, sqlcgen.UpdateFilmParams{
+	row, err := r.q.UpdateFilm(ctx, filmsqlc.UpdateFilmParams{
 		FilmID:             params.FilmID,
 		Title:              params.Title,
 		Description:        stringToText(params.Description),
@@ -211,7 +211,7 @@ func (r *filmRepository) DeleteFilm(ctx context.Context, filmID int32) error {
 }
 
 func (r *filmRepository) AddActorToFilm(ctx context.Context, actorID, filmID int32) error {
-	if err := r.q.AddActorToFilm(ctx, sqlcgen.AddActorToFilmParams{
+	if err := r.q.AddActorToFilm(ctx, filmsqlc.AddActorToFilmParams{
 		ActorID: actorID,
 		FilmID:  filmID,
 	}); err != nil {
@@ -221,7 +221,7 @@ func (r *filmRepository) AddActorToFilm(ctx context.Context, actorID, filmID int
 }
 
 func (r *filmRepository) RemoveActorFromFilm(ctx context.Context, actorID, filmID int32) error {
-	if err := r.q.RemoveActorFromFilm(ctx, sqlcgen.RemoveActorFromFilmParams{
+	if err := r.q.RemoveActorFromFilm(ctx, filmsqlc.RemoveActorFromFilmParams{
 		ActorID: actorID,
 		FilmID:  filmID,
 	}); err != nil {
@@ -231,7 +231,7 @@ func (r *filmRepository) RemoveActorFromFilm(ctx context.Context, actorID, filmI
 }
 
 func (r *filmRepository) AddCategoryToFilm(ctx context.Context, filmID, categoryID int32) error {
-	if err := r.q.AddCategoryToFilm(ctx, sqlcgen.AddCategoryToFilmParams{
+	if err := r.q.AddCategoryToFilm(ctx, filmsqlc.AddCategoryToFilmParams{
 		FilmID:     filmID,
 		CategoryID: categoryID,
 	}); err != nil {
@@ -241,7 +241,7 @@ func (r *filmRepository) AddCategoryToFilm(ctx context.Context, filmID, category
 }
 
 func (r *filmRepository) RemoveCategoryFromFilm(ctx context.Context, filmID, categoryID int32) error {
-	if err := r.q.RemoveCategoryFromFilm(ctx, sqlcgen.RemoveCategoryFromFilmParams{
+	if err := r.q.RemoveCategoryFromFilm(ctx, filmsqlc.RemoveCategoryFromFilmParams{
 		FilmID:     filmID,
 		CategoryID: categoryID,
 	}); err != nil {
@@ -261,7 +261,7 @@ func yearFromInt32(v int32) interface{} {
 
 // --- row to model conversions ---
 
-func filmFromGetRow(r sqlcgen.GetFilmRow) model.Film {
+func filmFromGetRow(r filmsqlc.GetFilmRow) model.Film {
 	f := convertFilmFields(filmFields{
 		FilmID: r.FilmID, Title: r.Title, Description: r.Description,
 		ReleaseYear: r.ReleaseYear, LanguageID: r.LanguageID,
@@ -272,7 +272,7 @@ func filmFromGetRow(r sqlcgen.GetFilmRow) model.Film {
 	return filmFromConverted(f)
 }
 
-func filmFromCreateRow(r sqlcgen.CreateFilmRow) model.Film {
+func filmFromCreateRow(r filmsqlc.CreateFilmRow) model.Film {
 	f := convertFilmFields(filmFields{
 		FilmID: r.FilmID, Title: r.Title, Description: r.Description,
 		ReleaseYear: r.ReleaseYear, LanguageID: r.LanguageID,
@@ -283,7 +283,7 @@ func filmFromCreateRow(r sqlcgen.CreateFilmRow) model.Film {
 	return filmFromConverted(f)
 }
 
-func filmFromUpdateRow(r sqlcgen.UpdateFilmRow) model.Film {
+func filmFromUpdateRow(r filmsqlc.UpdateFilmRow) model.Film {
 	f := convertFilmFields(filmFields{
 		FilmID: r.FilmID, Title: r.Title, Description: r.Description,
 		ReleaseYear: r.ReleaseYear, LanguageID: r.LanguageID,
@@ -294,7 +294,7 @@ func filmFromUpdateRow(r sqlcgen.UpdateFilmRow) model.Film {
 	return filmFromConverted(f)
 }
 
-func filmsFromListRows(rows []sqlcgen.ListFilmsRow) []model.Film {
+func filmsFromListRows(rows []filmsqlc.ListFilmsRow) []model.Film {
 	films := make([]model.Film, len(rows))
 	for i, r := range rows {
 		f := convertFilmFields(filmFields{
@@ -309,7 +309,7 @@ func filmsFromListRows(rows []sqlcgen.ListFilmsRow) []model.Film {
 	return films
 }
 
-func filmsFromSearchRows(rows []sqlcgen.SearchFilmsRow) []model.Film {
+func filmsFromSearchRows(rows []filmsqlc.SearchFilmsRow) []model.Film {
 	films := make([]model.Film, len(rows))
 	for i, r := range rows {
 		f := convertFilmFields(filmFields{
@@ -324,7 +324,7 @@ func filmsFromSearchRows(rows []sqlcgen.SearchFilmsRow) []model.Film {
 	return films
 }
 
-func filmsFromCategoryRows(rows []sqlcgen.ListFilmsByCategoryRow) []model.Film {
+func filmsFromCategoryRows(rows []filmsqlc.ListFilmsByCategoryRow) []model.Film {
 	films := make([]model.Film, len(rows))
 	for i, r := range rows {
 		f := convertFilmFields(filmFields{
@@ -339,7 +339,7 @@ func filmsFromCategoryRows(rows []sqlcgen.ListFilmsByCategoryRow) []model.Film {
 	return films
 }
 
-func filmsFromActorRows(rows []sqlcgen.ListFilmsByActorRow) []model.Film {
+func filmsFromActorRows(rows []filmsqlc.ListFilmsByActorRow) []model.Film {
 	films := make([]model.Film, len(rows))
 	for i, r := range rows {
 		f := convertFilmFields(filmFields{

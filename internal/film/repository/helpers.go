@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/enkaigaku/dvd-rental/internal/film/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/film"
 )
 
 // ErrNotFound is returned when a requested record does not exist.
@@ -118,18 +118,18 @@ func yearToInt32(v interface{}) int32 {
 
 // --- mpaa_rating helpers ---
 
-func ratingToString(r sqlcgen.NullMpaaRating) string {
+func ratingToString(r filmsqlc.NullMpaaRating) string {
 	if r.Valid {
 		return string(r.MpaaRating)
 	}
 	return ""
 }
 
-func stringToRating(s string) sqlcgen.NullMpaaRating {
+func stringToRating(s string) filmsqlc.NullMpaaRating {
 	if s == "" {
-		return sqlcgen.NullMpaaRating{Valid: false}
+		return filmsqlc.NullMpaaRating{Valid: false}
 	}
-	return sqlcgen.NullMpaaRating{MpaaRating: sqlcgen.MpaaRating(s), Valid: true}
+	return filmsqlc.NullMpaaRating{MpaaRating: filmsqlc.MpaaRating(s), Valid: true}
 }
 
 // --- language name helper ---
@@ -147,7 +147,7 @@ type filmRow interface {
 		filmID int32, title string, description pgtype.Text,
 		releaseYear interface{}, languageID int32, originalLanguageID pgtype.Int4,
 		rentalDuration int16, rentalRate pgtype.Numeric, length pgtype.Int2,
-		replacementCost pgtype.Numeric, rating sqlcgen.NullMpaaRating,
+		replacementCost pgtype.Numeric, rating filmsqlc.NullMpaaRating,
 		specialFeatures []string, lastUpdate pgtype.Timestamptz,
 	)
 }
@@ -164,7 +164,7 @@ type filmFields struct {
 	RentalRate         pgtype.Numeric
 	Length             pgtype.Int2
 	ReplacementCost    pgtype.Numeric
-	Rating             sqlcgen.NullMpaaRating
+	Rating             filmsqlc.NullMpaaRating
 	SpecialFeatures    []string
 	LastUpdate         pgtype.Timestamptz
 }

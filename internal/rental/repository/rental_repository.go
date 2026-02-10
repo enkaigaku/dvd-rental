@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/rental/model"
-	"github.com/enkaigaku/dvd-rental/internal/rental/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/rental"
 )
 
 // ErrNotFound is returned when a queried entity does not exist.
@@ -42,12 +42,12 @@ type RentalRepository interface {
 }
 
 type rentalRepository struct {
-	q *sqlcgen.Queries
+	q *rentalsqlc.Queries
 }
 
 // NewRentalRepository creates a new RentalRepository.
 func NewRentalRepository(pool *pgxpool.Pool) RentalRepository {
-	return &rentalRepository{q: sqlcgen.New(pool)}
+	return &rentalRepository{q: rentalsqlc.New(pool)}
 }
 
 func (r *rentalRepository) GetRental(ctx context.Context, rentalID int32) (model.Rental, error) {
@@ -62,7 +62,7 @@ func (r *rentalRepository) GetRental(ctx context.Context, rentalID int32) (model
 }
 
 func (r *rentalRepository) ListRentals(ctx context.Context, limit, offset int32) ([]model.Rental, error) {
-	rows, err := r.q.ListRentals(ctx, sqlcgen.ListRentalsParams{Limit: limit, Offset: offset})
+	rows, err := r.q.ListRentals(ctx, rentalsqlc.ListRentalsParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return nil, fmt.Errorf("list rentals: %w", err)
 	}
@@ -78,7 +78,7 @@ func (r *rentalRepository) CountRentals(ctx context.Context) (int64, error) {
 }
 
 func (r *rentalRepository) ListRentalsByCustomer(ctx context.Context, customerID, limit, offset int32) ([]model.Rental, error) {
-	rows, err := r.q.ListRentalsByCustomer(ctx, sqlcgen.ListRentalsByCustomerParams{
+	rows, err := r.q.ListRentalsByCustomer(ctx, rentalsqlc.ListRentalsByCustomerParams{
 		CustomerID: customerID, Limit: limit, Offset: offset,
 	})
 	if err != nil {
@@ -96,7 +96,7 @@ func (r *rentalRepository) CountRentalsByCustomer(ctx context.Context, customerI
 }
 
 func (r *rentalRepository) ListRentalsByInventory(ctx context.Context, inventoryID, limit, offset int32) ([]model.Rental, error) {
-	rows, err := r.q.ListRentalsByInventory(ctx, sqlcgen.ListRentalsByInventoryParams{
+	rows, err := r.q.ListRentalsByInventory(ctx, rentalsqlc.ListRentalsByInventoryParams{
 		InventoryID: inventoryID, Limit: limit, Offset: offset,
 	})
 	if err != nil {
@@ -114,7 +114,7 @@ func (r *rentalRepository) CountRentalsByInventory(ctx context.Context, inventor
 }
 
 func (r *rentalRepository) ListOverdueRentals(ctx context.Context, limit, offset int32) ([]model.Rental, error) {
-	rows, err := r.q.ListOverdueRentals(ctx, sqlcgen.ListOverdueRentalsParams{Limit: limit, Offset: offset})
+	rows, err := r.q.ListOverdueRentals(ctx, rentalsqlc.ListOverdueRentalsParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return nil, fmt.Errorf("list overdue rentals: %w", err)
 	}
@@ -130,7 +130,7 @@ func (r *rentalRepository) CountOverdueRentals(ctx context.Context) (int64, erro
 }
 
 func (r *rentalRepository) CreateRental(ctx context.Context, params CreateRentalParams) (model.Rental, error) {
-	row, err := r.q.CreateRental(ctx, sqlcgen.CreateRentalParams{
+	row, err := r.q.CreateRental(ctx, rentalsqlc.CreateRentalParams{
 		InventoryID: params.InventoryID,
 		CustomerID:  params.CustomerID,
 		StaffID:     params.StaffID,
@@ -193,7 +193,7 @@ func (r *rentalRepository) IsInventoryAvailable(ctx context.Context, inventoryID
 	return available, nil
 }
 
-func toRentalModel(r sqlcgen.Rental) model.Rental {
+func toRentalModel(r rentalsqlc.Rental) model.Rental {
 	return model.Rental{
 		RentalID:    r.RentalID,
 		RentalDate:  timestamptzToTime(r.RentalDate),
@@ -205,7 +205,7 @@ func toRentalModel(r sqlcgen.Rental) model.Rental {
 	}
 }
 
-func toRentalModels(rows []sqlcgen.Rental) []model.Rental {
+func toRentalModels(rows []rentalsqlc.Rental) []model.Rental {
 	rentals := make([]model.Rental, len(rows))
 	for i, row := range rows {
 		rentals[i] = toRentalModel(row)

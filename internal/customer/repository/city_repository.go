@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/customer/model"
-	"github.com/enkaigaku/dvd-rental/internal/customer/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/customer"
 )
 
 // CityRepository defines read-only data-access operations for cities.
@@ -20,12 +20,12 @@ type CityRepository interface {
 }
 
 type cityRepository struct {
-	q *sqlcgen.Queries
+	q *customersqlc.Queries
 }
 
 // NewCityRepository creates a new CityRepository.
 func NewCityRepository(pool *pgxpool.Pool) CityRepository {
-	return &cityRepository{q: sqlcgen.New(pool)}
+	return &cityRepository{q: customersqlc.New(pool)}
 }
 
 func (r *cityRepository) GetCity(ctx context.Context, cityID int32) (model.City, error) {
@@ -40,7 +40,7 @@ func (r *cityRepository) GetCity(ctx context.Context, cityID int32) (model.City,
 }
 
 func (r *cityRepository) ListCities(ctx context.Context, limit, offset int32) ([]model.City, error) {
-	rows, err := r.q.ListCities(ctx, sqlcgen.ListCitiesParams{
+	rows, err := r.q.ListCities(ctx, customersqlc.ListCitiesParams{
 		Limit:  limit,
 		Offset: offset,
 	})
@@ -62,7 +62,7 @@ func (r *cityRepository) CountCities(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-func toCityModel(c sqlcgen.City) model.City {
+func toCityModel(c customersqlc.City) model.City {
 	return model.City{
 		CityID:     c.CityID,
 		City:       c.City,

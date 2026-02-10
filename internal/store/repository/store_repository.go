@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/store/model"
-	"github.com/enkaigaku/dvd-rental/internal/store/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/store"
 )
 
 // ErrNotFound is returned when a requested record does not exist.
@@ -27,12 +27,12 @@ type StoreRepository interface {
 }
 
 type storeRepository struct {
-	q *sqlcgen.Queries
+	q *storesqlc.Queries
 }
 
 // NewStoreRepository creates a new StoreRepository backed by PostgreSQL.
 func NewStoreRepository(pool *pgxpool.Pool) StoreRepository {
-	return &storeRepository{q: sqlcgen.New(pool)}
+	return &storeRepository{q: storesqlc.New(pool)}
 }
 
 func (r *storeRepository) GetStore(ctx context.Context, storeID int32) (model.Store, error) {
@@ -47,7 +47,7 @@ func (r *storeRepository) GetStore(ctx context.Context, storeID int32) (model.St
 }
 
 func (r *storeRepository) ListStores(ctx context.Context, limit, offset int32) ([]model.Store, error) {
-	rows, err := r.q.ListStores(ctx, sqlcgen.ListStoresParams{
+	rows, err := r.q.ListStores(ctx, storesqlc.ListStoresParams{
 		Limit:  limit,
 		Offset: offset,
 	})
@@ -70,7 +70,7 @@ func (r *storeRepository) CountStores(ctx context.Context) (int64, error) {
 }
 
 func (r *storeRepository) CreateStore(ctx context.Context, managerStaffID, addressID int32) (model.Store, error) {
-	row, err := r.q.CreateStore(ctx, sqlcgen.CreateStoreParams{
+	row, err := r.q.CreateStore(ctx, storesqlc.CreateStoreParams{
 		ManagerStaffID: managerStaffID,
 		AddressID:      addressID,
 	})
@@ -81,7 +81,7 @@ func (r *storeRepository) CreateStore(ctx context.Context, managerStaffID, addre
 }
 
 func (r *storeRepository) UpdateStore(ctx context.Context, storeID, managerStaffID, addressID int32) (model.Store, error) {
-	row, err := r.q.UpdateStore(ctx, sqlcgen.UpdateStoreParams{
+	row, err := r.q.UpdateStore(ctx, storesqlc.UpdateStoreParams{
 		StoreID:        storeID,
 		ManagerStaffID: managerStaffID,
 		AddressID:      addressID,
@@ -102,7 +102,7 @@ func (r *storeRepository) DeleteStore(ctx context.Context, storeID int32) error 
 	return nil
 }
 
-func toStoreModel(s sqlcgen.Store) model.Store {
+func toStoreModel(s storesqlc.Store) model.Store {
 	return model.Store{
 		StoreID:        s.StoreID,
 		ManagerStaffID: s.ManagerStaffID,

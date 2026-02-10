@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/customer/model"
-	"github.com/enkaigaku/dvd-rental/internal/customer/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/customer"
 )
 
 // CreateAddressParams holds parameters for creating an address.
@@ -44,12 +44,12 @@ type AddressRepository interface {
 }
 
 type addressRepository struct {
-	q *sqlcgen.Queries
+	q *customersqlc.Queries
 }
 
 // NewAddressRepository creates a new AddressRepository.
 func NewAddressRepository(pool *pgxpool.Pool) AddressRepository {
-	return &addressRepository{q: sqlcgen.New(pool)}
+	return &addressRepository{q: customersqlc.New(pool)}
 }
 
 func (r *addressRepository) GetAddress(ctx context.Context, addressID int32) (model.Address, error) {
@@ -64,7 +64,7 @@ func (r *addressRepository) GetAddress(ctx context.Context, addressID int32) (mo
 }
 
 func (r *addressRepository) ListAddresses(ctx context.Context, limit, offset int32) ([]model.Address, error) {
-	rows, err := r.q.ListAddresses(ctx, sqlcgen.ListAddressesParams{
+	rows, err := r.q.ListAddresses(ctx, customersqlc.ListAddressesParams{
 		Limit:  limit,
 		Offset: offset,
 	})
@@ -87,7 +87,7 @@ func (r *addressRepository) CountAddresses(ctx context.Context) (int64, error) {
 }
 
 func (r *addressRepository) CreateAddress(ctx context.Context, params CreateAddressParams) (model.Address, error) {
-	row, err := r.q.CreateAddress(ctx, sqlcgen.CreateAddressParams{
+	row, err := r.q.CreateAddress(ctx, customersqlc.CreateAddressParams{
 		Address:    params.Address,
 		Address2:   stringToText(params.Address2),
 		District:   params.District,
@@ -102,7 +102,7 @@ func (r *addressRepository) CreateAddress(ctx context.Context, params CreateAddr
 }
 
 func (r *addressRepository) UpdateAddress(ctx context.Context, params UpdateAddressParams) (model.Address, error) {
-	row, err := r.q.UpdateAddress(ctx, sqlcgen.UpdateAddressParams{
+	row, err := r.q.UpdateAddress(ctx, customersqlc.UpdateAddressParams{
 		AddressID:  params.AddressID,
 		Address:    params.Address,
 		Address2:   stringToText(params.Address2),
@@ -127,7 +127,7 @@ func (r *addressRepository) DeleteAddress(ctx context.Context, addressID int32) 
 	return nil
 }
 
-func toAddressModel(a sqlcgen.Address) model.Address {
+func toAddressModel(a customersqlc.Address) model.Address {
 	return model.Address{
 		AddressID:  a.AddressID,
 		Address:    a.Address,

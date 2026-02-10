@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/payment/model"
-	"github.com/enkaigaku/dvd-rental/internal/payment/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/payment"
 )
 
 // ErrNotFound is returned when a queried entity does not exist.
@@ -45,12 +45,12 @@ type PaymentRepository interface {
 }
 
 type paymentRepository struct {
-	q *sqlcgen.Queries
+	q *paymentsqlc.Queries
 }
 
 // NewPaymentRepository creates a new PaymentRepository.
 func NewPaymentRepository(pool *pgxpool.Pool) PaymentRepository {
-	return &paymentRepository{q: sqlcgen.New(pool)}
+	return &paymentRepository{q: paymentsqlc.New(pool)}
 }
 
 func (r *paymentRepository) GetPayment(ctx context.Context, paymentID int32) (model.Payment, error) {
@@ -65,7 +65,7 @@ func (r *paymentRepository) GetPayment(ctx context.Context, paymentID int32) (mo
 }
 
 func (r *paymentRepository) ListPayments(ctx context.Context, limit, offset int32) ([]model.Payment, error) {
-	rows, err := r.q.ListPayments(ctx, sqlcgen.ListPaymentsParams{Limit: limit, Offset: offset})
+	rows, err := r.q.ListPayments(ctx, paymentsqlc.ListPaymentsParams{Limit: limit, Offset: offset})
 	if err != nil {
 		return nil, fmt.Errorf("list payments: %w", err)
 	}
@@ -81,7 +81,7 @@ func (r *paymentRepository) CountPayments(ctx context.Context) (int64, error) {
 }
 
 func (r *paymentRepository) ListPaymentsByCustomer(ctx context.Context, customerID, limit, offset int32) ([]model.Payment, error) {
-	rows, err := r.q.ListPaymentsByCustomer(ctx, sqlcgen.ListPaymentsByCustomerParams{
+	rows, err := r.q.ListPaymentsByCustomer(ctx, paymentsqlc.ListPaymentsByCustomerParams{
 		CustomerID: customerID, Limit: limit, Offset: offset,
 	})
 	if err != nil {
@@ -99,7 +99,7 @@ func (r *paymentRepository) CountPaymentsByCustomer(ctx context.Context, custome
 }
 
 func (r *paymentRepository) ListPaymentsByStaff(ctx context.Context, staffID, limit, offset int32) ([]model.Payment, error) {
-	rows, err := r.q.ListPaymentsByStaff(ctx, sqlcgen.ListPaymentsByStaffParams{
+	rows, err := r.q.ListPaymentsByStaff(ctx, paymentsqlc.ListPaymentsByStaffParams{
 		StaffID: staffID, Limit: limit, Offset: offset,
 	})
 	if err != nil {
@@ -117,7 +117,7 @@ func (r *paymentRepository) CountPaymentsByStaff(ctx context.Context, staffID in
 }
 
 func (r *paymentRepository) ListPaymentsByRental(ctx context.Context, rentalID, limit, offset int32) ([]model.Payment, error) {
-	rows, err := r.q.ListPaymentsByRental(ctx, sqlcgen.ListPaymentsByRentalParams{
+	rows, err := r.q.ListPaymentsByRental(ctx, paymentsqlc.ListPaymentsByRentalParams{
 		RentalID: rentalID, Limit: limit, Offset: offset,
 	})
 	if err != nil {
@@ -135,7 +135,7 @@ func (r *paymentRepository) CountPaymentsByRental(ctx context.Context, rentalID 
 }
 
 func (r *paymentRepository) ListPaymentsByDateRange(ctx context.Context, startDate, endDate time.Time, limit, offset int32) ([]model.Payment, error) {
-	rows, err := r.q.ListPaymentsByDateRange(ctx, sqlcgen.ListPaymentsByDateRangeParams{
+	rows, err := r.q.ListPaymentsByDateRange(ctx, paymentsqlc.ListPaymentsByDateRangeParams{
 		PaymentDate:   timeToTimestamptz(startDate),
 		PaymentDate_2: timeToTimestamptz(endDate),
 		Limit:         limit,
@@ -148,7 +148,7 @@ func (r *paymentRepository) ListPaymentsByDateRange(ctx context.Context, startDa
 }
 
 func (r *paymentRepository) CountPaymentsByDateRange(ctx context.Context, startDate, endDate time.Time) (int64, error) {
-	count, err := r.q.CountPaymentsByDateRange(ctx, sqlcgen.CountPaymentsByDateRangeParams{
+	count, err := r.q.CountPaymentsByDateRange(ctx, paymentsqlc.CountPaymentsByDateRangeParams{
 		PaymentDate:   timeToTimestamptz(startDate),
 		PaymentDate_2: timeToTimestamptz(endDate),
 	})
@@ -159,7 +159,7 @@ func (r *paymentRepository) CountPaymentsByDateRange(ctx context.Context, startD
 }
 
 func (r *paymentRepository) CreatePayment(ctx context.Context, params CreatePaymentParams) (model.Payment, error) {
-	row, err := r.q.CreatePayment(ctx, sqlcgen.CreatePaymentParams{
+	row, err := r.q.CreatePayment(ctx, paymentsqlc.CreatePaymentParams{
 		CustomerID: params.CustomerID,
 		StaffID:    params.StaffID,
 		RentalID:   params.RentalID,
@@ -217,7 +217,7 @@ func (r *paymentRepository) GetRentalDate(ctx context.Context, rentalID int32) (
 	return timestamptzToTime(ts), nil
 }
 
-func toPaymentModel(p sqlcgen.Payment) model.Payment {
+func toPaymentModel(p paymentsqlc.Payment) model.Payment {
 	return model.Payment{
 		PaymentID:   p.PaymentID,
 		CustomerID:  p.CustomerID,
@@ -228,7 +228,7 @@ func toPaymentModel(p sqlcgen.Payment) model.Payment {
 	}
 }
 
-func toPaymentModels(rows []sqlcgen.Payment) []model.Payment {
+func toPaymentModels(rows []paymentsqlc.Payment) []model.Payment {
 	payments := make([]model.Payment, len(rows))
 	for i, row := range rows {
 		payments[i] = toPaymentModel(row)

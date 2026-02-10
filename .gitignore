@@ -46,11 +46,8 @@ Thumbs.db
 # Docker volumes
 data/
 
-# sqlc generated (optional, some prefer to commit these)
-# internal/*/repository/sqlc/
-
-# Proto generated code
-gen/
+# Generated code is committed for build reproducibility
+# Regenerate with: make generate
 
 # Build artifacts
 dist/

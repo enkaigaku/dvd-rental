@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/film/model"
-	"github.com/enkaigaku/dvd-rental/internal/film/repository/sqlcgen"
+	"github.com/enkaigaku/dvd-rental/gen/sqlc/film"
 )
 
 // CategoryRepository defines the read-only data access interface for categories.
@@ -21,12 +21,12 @@ type CategoryRepository interface {
 }
 
 type categoryRepository struct {
-	q *sqlcgen.Queries
+	q *filmsqlc.Queries
 }
 
 // NewCategoryRepository creates a new CategoryRepository backed by PostgreSQL.
 func NewCategoryRepository(pool *pgxpool.Pool) CategoryRepository {
-	return &categoryRepository{q: sqlcgen.New(pool)}
+	return &categoryRepository{q: filmsqlc.New(pool)}
 }
 
 func (r *categoryRepository) GetCategory(ctx context.Context, categoryID int32) (model.Category, error) {
@@ -66,7 +66,7 @@ func (r *categoryRepository) ListCategoriesByFilm(ctx context.Context, filmID in
 
 // --- row to model conversions ---
 
-func toCategoryModel(r sqlcgen.Category) model.Category {
+func toCategoryModel(r filmsqlc.Category) model.Category {
 	return model.Category{
 		CategoryID: r.CategoryID,
 		Name:       r.Name,
@@ -74,7 +74,7 @@ func toCategoryModel(r sqlcgen.Category) model.Category {
 	}
 }
 
-func toCategoryModels(rows []sqlcgen.Category) []model.Category {
+func toCategoryModels(rows []filmsqlc.Category) []model.Category {
 	categories := make([]model.Category, len(rows))
 	for i, r := range rows {
 		categories[i] = toCategoryModel(r)
