@@ -49,6 +49,9 @@ data/
 # sqlc generated (optional, some prefer to commit these)
 # internal/*/repository/sqlc/
 
+# Proto generated code
+gen/
+
 # Build artifacts
 dist/
 tmp/
