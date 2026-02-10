@@ -87,6 +87,10 @@
 git clone https://github.com/enkaigaku/dvd-rental.git
 cd dvd-rental
 
+# 安装依赖并生成代码（proto + sqlc）
+go mod download
+make generate
+
 # 启动所有服务
 make up
 
@@ -117,10 +121,11 @@ make infra-up
 - PostgreSQL: `localhost:5432`（用户: `dvdrental`, 密码: `dvdrental`, 数据库: `dvdrental`）
 - Redis: `localhost:6379`
 
-#### 第 2 步：安装 Go 依赖
+#### 第 2 步：安装依赖并生成代码
 
 ```bash
 go mod download
+make generate    # 生成 proto + sqlc 代码到 gen/
 ```
 
 #### 第 3 步：启动 gRPC 服务

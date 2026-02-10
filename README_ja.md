@@ -87,6 +87,10 @@ Go、gRPC、PostgreSQL で構築されたマイクロサービスベースの DV
 git clone https://github.com/enkaigaku/dvd-rental.git
 cd dvd-rental
 
+# 依存関係のインストールとコード生成（proto + sqlc）
+go mod download
+make generate
+
 # 全サービスを起動
 make up
 
@@ -117,10 +121,11 @@ make infra-up
 - PostgreSQL: `localhost:5432`（ユーザー: `dvdrental`, パスワード: `dvdrental`, DB: `dvdrental`）
 - Redis: `localhost:6379`
 
-#### ステップ 2: Go 依存関係のインストール
+#### ステップ 2: 依存関係のインストールとコード生成
 
 ```bash
 go mod download
+make generate    # proto + sqlc コードを gen/ に生成
 ```
 
 #### ステップ 3: gRPC サービスの起動

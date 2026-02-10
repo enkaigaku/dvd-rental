@@ -88,6 +88,10 @@ This builds and starts all 7 services + PostgreSQL + Redis in containers.
 git clone https://github.com/enkaigaku/dvd-rental.git
 cd dvd-rental
 
+# Install dependencies and generate code (proto + sqlc)
+go mod download
+make generate
+
 # Start all services
 make up
 
@@ -118,10 +122,11 @@ This starts:
 - PostgreSQL on `localhost:5432` (user: `dvdrental`, password: `dvdrental`, db: `dvdrental`)
 - Redis on `localhost:6379`
 
-#### Step 2: Install Go Dependencies
+#### Step 2: Install Dependencies and Generate Code
 
 ```bash
 go mod download
+make generate    # Generate proto + sqlc code into gen/
 ```
 
 #### Step 3: Start gRPC Services
