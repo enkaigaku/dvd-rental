@@ -46,8 +46,8 @@ Thumbs.db
 # Docker volumes
 data/
 
-# Generated code is committed for build reproducibility
-# Regenerate with: make generate
+# Generated code (regenerate with: make generate)
+gen/
 
 # Build artifacts
 dist/
