@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -46,4 +47,30 @@ func boolToActive(b bool) pgtype.Int4 {
 		v = 1
 	}
 	return pgtype.Int4{Int32: v, Valid: true}
+}
+
+// numericToFloat tries to convert an interface{} (from a PostgreSQL numeric COALESCE result)
+// to float64. Returns (value, true) on success.
+func numericToFloat(v interface{}) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case string:
+		var f float64
+		if _, err := fmt.Sscanf(n, "%f", &f); err == nil {
+			return f, true
+		}
+	case pgtype.Numeric:
+		if n.Valid {
+			f, err := n.Float64Value()
+			if err == nil && f.Valid {
+				return f.Float64, true
+			}
+		}
+	}
+	return 0, false
 }

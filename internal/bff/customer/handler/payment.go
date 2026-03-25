@@ -75,3 +75,32 @@ func (h *PaymentHandler) ListPayments(w http.ResponseWriter, r *http.Request) {
 		PageSize:   pageSize,
 	})
 }
+
+// GetMyBalance returns the balance (charges vs payments) for the authenticated customer.
+func (h *PaymentHandler) GetMyBalance(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		middleware.WriteJSONError(w, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.paymentClient.GetCustomerBalance(ctx, &paymentv1.GetCustomerBalanceRequest{
+		CustomerId: claims.UserID,
+	})
+	if err != nil {
+		grpcToHTTPError(w, err)
+		return
+	}
+
+	middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"customer_id":    resp.GetCustomerId(),
+		"total_charges":  resp.GetTotalCharges(),
+		"total_payments": resp.GetTotalPayments(),
+		"balance":        resp.GetBalance(),
+		"rental_count":   resp.GetRentalCount(),
+		"payment_count":  resp.GetPaymentCount(),
+	})
+}

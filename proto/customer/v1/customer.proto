@@ -16,6 +16,8 @@ service CustomerService {
   rpc CreateCustomer(CreateCustomerRequest) returns (Customer);
   rpc UpdateCustomer(UpdateCustomerRequest) returns (Customer);
   rpc DeleteCustomer(DeleteCustomerRequest) returns (google.protobuf.Empty);
+  rpc GetCustomerStanding(GetCustomerStandingRequest) returns (CustomerStanding);
+  rpc GetCustomerSummary(GetCustomerSummaryRequest) returns (CustomerSummary);
 }
 
 // AddressService manages addresses.
@@ -115,6 +117,32 @@ message UpdateCustomerRequest {
 
 message DeleteCustomerRequest {
   int32 customer_id = 1;
+}
+
+message GetCustomerStandingRequest {
+  int32 customer_id = 1;
+}
+
+message CustomerStanding {
+  int32 customer_id = 1;
+  bool in_good_standing = 2;
+  repeated string reasons = 3;
+  int32 active_rentals = 4;
+  int32 overdue_rentals = 5;
+  string outstanding_balance = 6;
+}
+
+message GetCustomerSummaryRequest {
+  int32 customer_id = 1;
+}
+
+message CustomerSummary {
+  int32 customer_id = 1;
+  int32 total_rentals = 2;
+  int32 active_rentals = 3;
+  string total_spent = 4;
+  string favorite_category = 5;
+  string outstanding_balance = 6;
 }
 
 // ---------------------------------------------------------------------------

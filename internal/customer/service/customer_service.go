@@ -221,3 +221,80 @@ func (s *CustomerService) validateCustomerParams(ctx context.Context, firstName,
 
 	return nil
 }
+
+// GetCustomerStanding returns account standing info: whether overdue, active rentals, balance.
+func (s *CustomerService) GetCustomerStanding(ctx context.Context, customerID int32) (model.CustomerStanding, error) {
+	if customerID <= 0 {
+		return model.CustomerStanding{}, fmt.Errorf("customer_id must be positive: %w", ErrInvalidArgument)
+	}
+
+	overdue, err := s.customerRepo.CountCustomerOverdueRentals(ctx, customerID)
+	if err != nil {
+		return model.CustomerStanding{}, err
+	}
+	active, err := s.customerRepo.CountCustomerActiveRentals(ctx, customerID)
+	if err != nil {
+		return model.CustomerStanding{}, err
+	}
+	balance, err := s.customerRepo.GetCustomerBalance(ctx, customerID)
+	if err != nil {
+		return model.CustomerStanding{}, err
+	}
+
+	var reasons []string
+	inGoodStanding := true
+	if overdue > 0 {
+		inGoodStanding = false
+		reasons = append(reasons, fmt.Sprintf("%d overdue rental(s)", overdue))
+	}
+	if active >= 5 {
+		inGoodStanding = false
+		reasons = append(reasons, "rental limit reached (5 active rentals)")
+	}
+
+	return model.CustomerStanding{
+		CustomerID:         customerID,
+		InGoodStanding:     inGoodStanding,
+		Reasons:            reasons,
+		ActiveRentals:      int32(active),
+		OverdueRentals:     int32(overdue),
+		OutstandingBalance: balance,
+	}, nil
+}
+
+// GetCustomerSummary returns aggregate rental statistics for a customer.
+func (s *CustomerService) GetCustomerSummary(ctx context.Context, customerID int32) (model.CustomerSummary, error) {
+	if customerID <= 0 {
+		return model.CustomerSummary{}, fmt.Errorf("customer_id must be positive: %w", ErrInvalidArgument)
+	}
+
+	totalRentals, err := s.customerRepo.CountCustomerTotalRentals(ctx, customerID)
+	if err != nil {
+		return model.CustomerSummary{}, err
+	}
+	active, err := s.customerRepo.CountCustomerActiveRentals(ctx, customerID)
+	if err != nil {
+		return model.CustomerSummary{}, err
+	}
+	totalSpent, err := s.customerRepo.GetCustomerTotalSpent(ctx, customerID)
+	if err != nil {
+		return model.CustomerSummary{}, err
+	}
+	favoriteCategory, err := s.customerRepo.GetCustomerFavoriteCategory(ctx, customerID)
+	if err != nil {
+		return model.CustomerSummary{}, err
+	}
+	balance, err := s.customerRepo.GetCustomerBalance(ctx, customerID)
+	if err != nil {
+		return model.CustomerSummary{}, err
+	}
+
+	return model.CustomerSummary{
+		CustomerID:         customerID,
+		TotalRentals:       int32(totalRentals),
+		ActiveRentals:      int32(active),
+		TotalSpent:         totalSpent,
+		FavoriteCategory:   favoriteCategory,
+		OutstandingBalance: balance,
+	}, nil
+}

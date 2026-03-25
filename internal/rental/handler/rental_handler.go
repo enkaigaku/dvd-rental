@@ -74,12 +74,12 @@ func (h *RentalHandler) CreateRental(ctx context.Context, req *rentalv1.CreateRe
 	return rentalToProto(rental), nil
 }
 
-func (h *RentalHandler) ReturnRental(ctx context.Context, req *rentalv1.ReturnRentalRequest) (*rentalv1.Rental, error) {
-	rental, err := h.svc.ReturnRental(ctx, req.GetRentalId())
+func (h *RentalHandler) ReturnRental(ctx context.Context, req *rentalv1.ReturnRentalRequest) (*rentalv1.ReturnRentalResponse, error) {
+	result, err := h.svc.ReturnRental(ctx, req.GetRentalId())
 	if err != nil {
 		return nil, toGRPCError(err)
 	}
-	return rentalToProto(rental), nil
+	return returnResultToProto(result), nil
 }
 
 func (h *RentalHandler) DeleteRental(ctx context.Context, req *rentalv1.DeleteRentalRequest) (*emptypb.Empty, error) {

@@ -40,10 +40,13 @@ func NewRouter(
 
 	// --- Protected: Payments ---
 	mux.Handle("GET /api/v1/payments", authMw.Require(http.HandlerFunc(paymentH.ListPayments)))
+	mux.Handle("GET /api/v1/balance", authMw.Require(http.HandlerFunc(paymentH.GetMyBalance)))
 
 	// --- Protected: Profile ---
 	mux.Handle("GET /api/v1/profile", authMw.Require(http.HandlerFunc(profileH.GetProfile)))
 	mux.Handle("PUT /api/v1/profile", authMw.Require(http.HandlerFunc(profileH.UpdateProfile)))
+	mux.Handle("GET /api/v1/standing", authMw.Require(http.HandlerFunc(profileH.GetMyStanding)))
+	mux.Handle("GET /api/v1/summary", authMw.Require(http.HandlerFunc(profileH.GetMySummary)))
 
 	// Apply middleware chain: Recovery → Logging → CORS → router.
 	return middleware.Recovery(

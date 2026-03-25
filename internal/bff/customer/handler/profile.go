@@ -137,3 +137,61 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		Active:    updated.GetActive(),
 	})
 }
+
+// GetMyStanding returns the account standing for the authenticated customer.
+func (h *ProfileHandler) GetMyStanding(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		middleware.WriteJSONError(w, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.customerClient.GetCustomerStanding(ctx, &customerv1.GetCustomerStandingRequest{
+		CustomerId: claims.UserID,
+	})
+	if err != nil {
+		grpcToHTTPError(w, err)
+		return
+	}
+
+	middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"customer_id":         resp.GetCustomerId(),
+		"in_good_standing":    resp.GetInGoodStanding(),
+		"reasons":             resp.GetReasons(),
+		"active_rentals":      resp.GetActiveRentals(),
+		"overdue_rentals":     resp.GetOverdueRentals(),
+		"outstanding_balance": resp.GetOutstandingBalance(),
+	})
+}
+
+// GetMySummary returns aggregate rental statistics for the authenticated customer.
+func (h *ProfileHandler) GetMySummary(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		middleware.WriteJSONError(w, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.customerClient.GetCustomerSummary(ctx, &customerv1.GetCustomerSummaryRequest{
+		CustomerId: claims.UserID,
+	})
+	if err != nil {
+		grpcToHTTPError(w, err)
+		return
+	}
+
+	middleware.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"customer_id":         resp.GetCustomerId(),
+		"total_rentals":       resp.GetTotalRentals(),
+		"active_rentals":      resp.GetActiveRentals(),
+		"total_spent":         resp.GetTotalSpent(),
+		"favorite_category":   resp.GetFavoriteCategory(),
+		"outstanding_balance": resp.GetOutstandingBalance(),
+	})
+}

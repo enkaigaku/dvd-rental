@@ -75,3 +75,31 @@ WHERE staff_id = $1;
 SELECT rental_date
 FROM rental
 WHERE rental_id = $1;
+
+-- name: GetCustomerTotalPayments :one
+SELECT COALESCE(SUM(amount), 0)::text AS total
+FROM payment
+WHERE customer_id = $1;
+
+-- name: GetCustomerTotalCharges :one
+SELECT COALESCE(SUM(f.rental_rate), 0)::text AS total
+FROM rental r
+JOIN inventory i ON i.inventory_id = r.inventory_id
+JOIN film f ON f.film_id = i.film_id
+WHERE r.customer_id = $1;
+
+-- name: CountRentalsByCustomer :one
+SELECT count(*) FROM rental WHERE customer_id = $1;
+
+-- name: GetStoreRevenue :many
+SELECT
+  i.store_id,
+  COUNT(DISTINCT p.payment_id)::int AS payment_count,
+  COUNT(DISTINCT p.rental_id)::int AS rental_count,
+  COALESCE(SUM(p.amount), 0)::text AS total_revenue
+FROM payment p
+JOIN rental r ON r.rental_id = p.rental_id
+JOIN inventory i ON i.inventory_id = r.inventory_id
+WHERE p.payment_date >= $1 AND p.payment_date < $2
+GROUP BY i.store_id
+ORDER BY i.store_id;

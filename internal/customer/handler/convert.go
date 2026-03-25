@@ -84,3 +84,25 @@ func countryToProto(c model.Country) *customerv1.Country {
 		LastUpdate: timestamppb.New(c.LastUpdate),
 	}
 }
+
+func customerStandingToProto(s model.CustomerStanding) *customerv1.CustomerStanding {
+	return &customerv1.CustomerStanding{
+		CustomerId:         s.CustomerID,
+		InGoodStanding:     s.InGoodStanding,
+		Reasons:            s.Reasons,
+		ActiveRentals:      s.ActiveRentals,
+		OverdueRentals:     s.OverdueRentals,
+		OutstandingBalance: s.OutstandingBalance,
+	}
+}
+
+func customerSummaryToProto(s model.CustomerSummary) *customerv1.CustomerSummary {
+	return &customerv1.CustomerSummary{
+		CustomerId:         s.CustomerID,
+		TotalRentals:       s.TotalRentals,
+		ActiveRentals:      s.ActiveRentals,
+		TotalSpent:         s.TotalSpent,
+		FavoriteCategory:   s.FavoriteCategory,
+		OutstandingBalance: s.OutstandingBalance,
+	}
+}

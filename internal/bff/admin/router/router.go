@@ -47,6 +47,9 @@ func NewRouter(
 	mux.Handle("POST /api/v1/customers", authMw.Require(http.HandlerFunc(customerH.CreateCustomer)))
 	mux.Handle("PUT /api/v1/customers/{id}", authMw.Require(http.HandlerFunc(customerH.UpdateCustomer)))
 	mux.Handle("DELETE /api/v1/customers/{id}", authMw.Require(http.HandlerFunc(customerH.DeleteCustomer)))
+	mux.Handle("GET /api/v1/customers/{id}/standing", authMw.Require(http.HandlerFunc(customerH.GetCustomerStanding)))
+	mux.Handle("GET /api/v1/customers/{id}/summary", authMw.Require(http.HandlerFunc(customerH.GetCustomerSummary)))
+	mux.Handle("GET /api/v1/customers/{id}/balance", authMw.Require(http.HandlerFunc(paymentH.GetCustomerBalance)))
 
 	// --- Protected: Films ---
 	mux.Handle("GET /api/v1/films", authMw.Require(http.HandlerFunc(filmH.ListFilms)))
@@ -92,6 +95,9 @@ func NewRouter(
 	mux.Handle("GET /api/v1/payments/{id}", authMw.Require(http.HandlerFunc(paymentH.GetPayment)))
 	mux.Handle("POST /api/v1/payments", authMw.Require(http.HandlerFunc(paymentH.CreatePayment)))
 	mux.Handle("DELETE /api/v1/payments/{id}", authMw.Require(http.HandlerFunc(paymentH.DeletePayment)))
+
+	// --- Protected: Reports ---
+	mux.Handle("GET /api/v1/reports/revenue", authMw.Require(http.HandlerFunc(paymentH.GetRevenueByStore)))
 
 	// Apply middleware chain: Recovery → Logging → CORS → router.
 	return middleware.Recovery(

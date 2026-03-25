@@ -22,6 +22,8 @@ func toGRPCError(err error) error {
 		return status.Error(codes.AlreadyExists, err.Error())
 	case errors.Is(err, service.ErrForeignKey):
 		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, service.ErrRentalPolicy):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	default:
 		return status.Error(codes.Internal, "internal error")
 	}
@@ -49,6 +51,14 @@ func rentalDetailToProto(d model.RentalDetail) *rentalv1.RentalDetail {
 		CustomerName: d.CustomerName,
 		FilmTitle:    d.FilmTitle,
 		StoreId:      d.StoreID,
+	}
+}
+
+func returnResultToProto(r model.ReturnResult) *rentalv1.ReturnRentalResponse {
+	return &rentalv1.ReturnRentalResponse{
+		Rental:      rentalToProto(r.Rental),
+		LateFee:     r.LateFee,
+		DaysOverdue: r.DaysOverdue,
 	}
 }
 

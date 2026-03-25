@@ -236,3 +236,61 @@ func (h *CustomerHandler) DeleteCustomer(w http.ResponseWriter, r *http.Request)
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// GetCustomerStanding returns account standing info for a specific customer.
+func (h *CustomerHandler) GetCustomerStanding(w http.ResponseWriter, r *http.Request) {
+	customerID, err := parseIntParam(r, "id")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid customer id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.customerClient.GetCustomerStanding(ctx, &customerv1.GetCustomerStandingRequest{
+		CustomerId: customerID,
+	})
+	if err != nil {
+		handleGRPCError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"customer_id":         resp.GetCustomerId(),
+		"in_good_standing":    resp.GetInGoodStanding(),
+		"reasons":             resp.GetReasons(),
+		"active_rentals":      resp.GetActiveRentals(),
+		"overdue_rentals":     resp.GetOverdueRentals(),
+		"outstanding_balance": resp.GetOutstandingBalance(),
+	})
+}
+
+// GetCustomerSummary returns aggregate rental statistics for a specific customer.
+func (h *CustomerHandler) GetCustomerSummary(w http.ResponseWriter, r *http.Request) {
+	customerID, err := parseIntParam(r, "id")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid customer id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.customerClient.GetCustomerSummary(ctx, &customerv1.GetCustomerSummaryRequest{
+		CustomerId: customerID,
+	})
+	if err != nil {
+		handleGRPCError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"customer_id":         resp.GetCustomerId(),
+		"total_rentals":       resp.GetTotalRentals(),
+		"active_rentals":      resp.GetActiveRentals(),
+		"total_spent":         resp.GetTotalSpent(),
+		"favorite_category":   resp.GetFavoriteCategory(),
+		"outstanding_balance": resp.GetOutstandingBalance(),
+	})
+}

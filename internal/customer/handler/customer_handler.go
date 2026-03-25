@@ -102,3 +102,19 @@ func toCustomerListResponse(customers []model.Customer, total int64) *customerv1
 		TotalCount: int32(total),
 	}
 }
+
+func (h *CustomerHandler) GetCustomerStanding(ctx context.Context, req *customerv1.GetCustomerStandingRequest) (*customerv1.CustomerStanding, error) {
+	standing, err := h.svc.GetCustomerStanding(ctx, req.GetCustomerId())
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+	return customerStandingToProto(standing), nil
+}
+
+func (h *CustomerHandler) GetCustomerSummary(ctx context.Context, req *customerv1.GetCustomerSummaryRequest) (*customerv1.CustomerSummary, error) {
+	summary, err := h.svc.GetCustomerSummary(ctx, req.GetCustomerId())
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+	return customerSummaryToProto(summary), nil
+}

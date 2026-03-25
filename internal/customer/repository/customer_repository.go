@@ -48,6 +48,12 @@ type CustomerRepository interface {
 	CreateCustomer(ctx context.Context, params CreateCustomerParams) (model.Customer, error)
 	UpdateCustomer(ctx context.Context, params UpdateCustomerParams) (model.Customer, error)
 	DeleteCustomer(ctx context.Context, customerID int32) error
+	CountCustomerOverdueRentals(ctx context.Context, customerID int32) (int64, error)
+	CountCustomerActiveRentals(ctx context.Context, customerID int32) (int64, error)
+	GetCustomerBalance(ctx context.Context, customerID int32) (string, error)
+	CountCustomerTotalRentals(ctx context.Context, customerID int32) (int64, error)
+	GetCustomerTotalSpent(ctx context.Context, customerID int32) (string, error)
+	GetCustomerFavoriteCategory(ctx context.Context, customerID int32) (string, error)
 }
 
 type customerRepository struct {
@@ -177,6 +183,67 @@ func (r *customerRepository) DeleteCustomer(ctx context.Context, customerID int3
 		return fmt.Errorf("delete customer: %w", err)
 	}
 	return nil
+}
+
+func (r *customerRepository) CountCustomerOverdueRentals(ctx context.Context, customerID int32) (int64, error) {
+	count, err := r.q.CountCustomerOverdueRentals(ctx, customerID)
+	if err != nil {
+		return 0, fmt.Errorf("count overdue rentals: %w", err)
+	}
+	return count, nil
+}
+
+func (r *customerRepository) CountCustomerActiveRentals(ctx context.Context, customerID int32) (int64, error) {
+	count, err := r.q.CountCustomerActiveRentals(ctx, customerID)
+	if err != nil {
+		return 0, fmt.Errorf("count active rentals: %w", err)
+	}
+	return count, nil
+}
+
+func (r *customerRepository) GetCustomerBalance(ctx context.Context, customerID int32) (string, error) {
+	val, err := r.q.GetCustomerBalance(ctx, customerID)
+	if err != nil {
+		return "0.00", fmt.Errorf("get customer balance: %w", err)
+	}
+	if s, ok := val.(string); ok {
+		return s, nil
+	}
+	// numeric result may come back as pgtype.Numeric; format it
+	if f, ok := numericToFloat(val); ok {
+		return fmt.Sprintf("%.2f", f), nil
+	}
+	return "0.00", nil
+}
+
+func (r *customerRepository) CountCustomerTotalRentals(ctx context.Context, customerID int32) (int64, error) {
+	count, err := r.q.CountCustomerTotalRentals(ctx, customerID)
+	if err != nil {
+		return 0, fmt.Errorf("count total rentals: %w", err)
+	}
+	return count, nil
+}
+
+func (r *customerRepository) GetCustomerTotalSpent(ctx context.Context, customerID int32) (string, error) {
+	val, err := r.q.GetCustomerTotalSpent(ctx, customerID)
+	if err != nil {
+		return "0.00", fmt.Errorf("get customer total spent: %w", err)
+	}
+	if s, ok := val.(string); ok {
+		return s, nil
+	}
+	if f, ok := numericToFloat(val); ok {
+		return fmt.Sprintf("%.2f", f), nil
+	}
+	return "0.00", nil
+}
+
+func (r *customerRepository) GetCustomerFavoriteCategory(ctx context.Context, customerID int32) (string, error) {
+	name, err := r.q.GetCustomerFavoriteCategory(ctx, customerID)
+	if err != nil {
+		return "", nil // no favorite category is not an error
+	}
+	return name, nil
 }
 
 func toCustomerModel(

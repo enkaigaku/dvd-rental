@@ -12,6 +12,24 @@ type Payment struct {
 	PaymentDate time.Time
 }
 
+// CustomerBalance represents a customer's financial summary.
+type CustomerBalance struct {
+	CustomerID    int32
+	TotalCharges  string
+	TotalPayments string
+	Balance       string // positive = owes money
+	RentalCount   int32
+	PaymentCount  int32
+}
+
+// StoreRevenue represents revenue for a single store within a date range.
+type StoreRevenue struct {
+	StoreID      int32
+	TotalRevenue string
+	PaymentCount int32
+	RentalCount  int32
+}
+
 // PaymentDetail is an enriched payment with cross-table data.
 type PaymentDetail struct {
 	Payment

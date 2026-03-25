@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/enkaigaku/dvd-rental/internal/rental/model"
@@ -39,6 +40,10 @@ type RentalRepository interface {
 	GetCustomerName(ctx context.Context, customerID int32) (string, error)
 	GetFilmTitleByInventory(ctx context.Context, inventoryID int32) (string, int32, error)
 	IsInventoryAvailable(ctx context.Context, inventoryID int32) (bool, error)
+	CountActiveRentalsByCustomer(ctx context.Context, customerID int32) (int64, error)
+	CountOverdueRentalsByCustomer(ctx context.Context, customerID int32) (int64, error)
+	GetFilmRentalTermsByInventory(ctx context.Context, inventoryID int32) (model.FilmRentalTerms, error)
+	CreateLateFeePayment(ctx context.Context, customerID, staffID, rentalID int32, amount string) error
 }
 
 type rentalRepository struct {
@@ -211,4 +216,67 @@ func toRentalModels(rows []rentalsqlc.Rental) []model.Rental {
 		rentals[i] = toRentalModel(row)
 	}
 	return rentals
+}
+
+func (r *rentalRepository) CountActiveRentalsByCustomer(ctx context.Context, customerID int32) (int64, error) {
+	count, err := r.q.CountActiveRentalsByCustomer(ctx, customerID)
+	if err != nil {
+		return 0, fmt.Errorf("count active rentals by customer: %w", err)
+	}
+	return count, nil
+}
+
+func (r *rentalRepository) CountOverdueRentalsByCustomer(ctx context.Context, customerID int32) (int64, error) {
+	count, err := r.q.CountOverdueRentalsByCustomer(ctx, customerID)
+	if err != nil {
+		return 0, fmt.Errorf("count overdue rentals by customer: %w", err)
+	}
+	return count, nil
+}
+
+func (r *rentalRepository) GetFilmRentalTermsByInventory(ctx context.Context, inventoryID int32) (model.FilmRentalTerms, error) {
+	row, err := r.q.GetFilmRentalTermsByInventory(ctx, inventoryID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.FilmRentalTerms{}, ErrNotFound
+		}
+		return model.FilmRentalTerms{}, fmt.Errorf("get film rental terms: %w", err)
+	}
+	return model.FilmRentalTerms{
+		RentalDuration:  row.RentalDuration,
+		RentalRate:      numericToString(row.RentalRate),
+		ReplacementCost: numericToString(row.ReplacementCost),
+		Title:           row.Title,
+		StoreID:         row.StoreID,
+	}, nil
+}
+
+func (r *rentalRepository) CreateLateFeePayment(ctx context.Context, customerID, staffID, rentalID int32, amount string) error {
+	_, err := r.q.CreateLateFeePayment(ctx, rentalsqlc.CreateLateFeePaymentParams{
+		CustomerID: customerID,
+		StaffID:    staffID,
+		RentalID:   rentalID,
+		Amount:     stringToNumeric(amount),
+	})
+	if err != nil {
+		return fmt.Errorf("create late fee payment: %w", err)
+	}
+	return nil
+}
+
+func numericToString(n pgtype.Numeric) string {
+	if !n.Valid {
+		return "0.00"
+	}
+	f, _ := n.Float64Value()
+	if !f.Valid {
+		return "0.00"
+	}
+	return fmt.Sprintf("%.2f", f.Float64)
+}
+
+func stringToNumeric(s string) pgtype.Numeric {
+	var n pgtype.Numeric
+	_ = n.Scan(s)
+	return n
 }

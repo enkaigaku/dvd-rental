@@ -15,7 +15,7 @@ service RentalService {
   rpc ListRentalsByInventory(ListRentalsByInventoryRequest) returns (ListRentalsResponse);
   rpc ListOverdueRentals(ListOverdueRentalsRequest) returns (ListRentalsResponse);
   rpc CreateRental(CreateRentalRequest) returns (Rental);
-  rpc ReturnRental(ReturnRentalRequest) returns (Rental);
+  rpc ReturnRental(ReturnRentalRequest) returns (ReturnRentalResponse);
   rpc DeleteRental(DeleteRentalRequest) returns (google.protobuf.Empty);
 }
 
@@ -93,6 +93,12 @@ message CreateRentalRequest {
 
 message ReturnRentalRequest {
   int32 rental_id = 1;
+}
+
+message ReturnRentalResponse {
+  Rental rental = 1;
+  string late_fee = 2;      // "0.00" if on time, e.g. "3.00" for 3 days late
+  int32 days_overdue = 3;   // 0 if on time
 }
 
 message DeleteRentalRequest {

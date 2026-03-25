@@ -194,6 +194,71 @@ func (s *PaymentService) CreatePayment(ctx context.Context, params repository.Cr
 	return payment, nil
 }
 
+// GetCustomerBalance returns the financial summary for a customer.
+func (s *PaymentService) GetCustomerBalance(ctx context.Context, customerID int32) (model.CustomerBalance, error) {
+	if customerID <= 0 {
+		return model.CustomerBalance{}, fmt.Errorf("customer_id must be positive: %w", ErrInvalidArgument)
+	}
+
+	totalCharges, err := s.repo.GetCustomerTotalCharges(ctx, customerID)
+	if err != nil {
+		return model.CustomerBalance{}, err
+	}
+
+	totalPayments, err := s.repo.GetCustomerTotalPayments(ctx, customerID)
+	if err != nil {
+		return model.CustomerBalance{}, err
+	}
+
+	// Compute balance = charges - payments using strconv arithmetic.
+	charges := parseDecimal(totalCharges)
+	payments := parseDecimal(totalPayments)
+	balance := charges - payments
+
+	rentalCount, _ := s.repo.CountRentalsByCustomer(ctx, customerID)
+	paymentCount, _ := s.repo.CountPaymentsByCustomer(ctx, customerID)
+
+	return model.CustomerBalance{
+		CustomerID:    customerID,
+		TotalCharges:  totalCharges,
+		TotalPayments: totalPayments,
+		Balance:       fmt.Sprintf("%.2f", balance),
+		RentalCount:   int32(rentalCount),
+		PaymentCount:  int32(paymentCount),
+	}, nil
+}
+
+// GetRevenueByStore returns aggregated revenue by store for a date range.
+func (s *PaymentService) GetRevenueByStore(ctx context.Context, startDate, endDate time.Time) ([]model.StoreRevenue, string, error) {
+	if startDate.IsZero() {
+		return nil, "", fmt.Errorf("start_date must not be empty: %w", ErrInvalidArgument)
+	}
+	if endDate.IsZero() {
+		return nil, "", fmt.Errorf("end_date must not be empty: %w", ErrInvalidArgument)
+	}
+	if !startDate.Before(endDate) {
+		return nil, "", fmt.Errorf("start_date must be before end_date: %w", ErrInvalidArgument)
+	}
+
+	stores, err := s.repo.GetStoreRevenue(ctx, startDate, endDate)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var total float64
+	for _, s := range stores {
+		total += parseDecimal(s.TotalRevenue)
+	}
+
+	return stores, fmt.Sprintf("%.2f", total), nil
+}
+
+func parseDecimal(s string) float64 {
+	var f float64
+	fmt.Sscanf(s, "%f", &f)
+	return f
+}
+
 // DeletePayment deletes a payment record.
 func (s *PaymentService) DeletePayment(ctx context.Context, paymentID int32) error {
 	if paymentID <= 0 {

@@ -72,3 +72,26 @@ SELECT NOT EXISTS (
     SELECT 1 FROM rental
     WHERE inventory_id = $1 AND return_date IS NULL
 ) AS available;
+
+-- name: CountActiveRentalsByCustomer :one
+SELECT count(*) FROM rental
+WHERE customer_id = $1 AND return_date IS NULL;
+
+-- name: CountOverdueRentalsByCustomer :one
+SELECT count(*) FROM rental r
+JOIN inventory i ON i.inventory_id = r.inventory_id
+JOIN film f ON f.film_id = i.film_id
+WHERE r.customer_id = $1
+  AND r.return_date IS NULL
+  AND r.rental_date + (f.rental_duration || ' days')::interval < now() - interval '7 days';
+
+-- name: GetFilmRentalTermsByInventory :one
+SELECT f.rental_duration, f.rental_rate, f.replacement_cost, f.title, i.store_id
+FROM inventory i
+JOIN film f ON f.film_id = i.film_id
+WHERE i.inventory_id = $1;
+
+-- name: CreateLateFeePayment :one
+INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)
+VALUES ($1, $2, $3, $4, now())
+RETURNING payment_id, customer_id, staff_id, rental_id, amount, payment_date;
