@@ -202,18 +202,14 @@ func (r *customerRepository) CountCustomerActiveRentals(ctx context.Context, cus
 }
 
 func (r *customerRepository) GetCustomerBalance(ctx context.Context, customerID int32) (string, error) {
-	val, err := r.q.GetCustomerBalance(ctx, customerID)
+	balance, err := r.q.GetCustomerBalance(ctx, customerID)
 	if err != nil {
 		return "0.00", fmt.Errorf("get customer balance: %w", err)
 	}
-	if s, ok := val.(string); ok {
-		return s, nil
+	if balance == "" {
+		return "0.00", nil
 	}
-	// numeric result may come back as pgtype.Numeric; format it
-	if f, ok := numericToFloat(val); ok {
-		return fmt.Sprintf("%.2f", f), nil
-	}
-	return "0.00", nil
+	return balance, nil
 }
 
 func (r *customerRepository) CountCustomerTotalRentals(ctx context.Context, customerID int32) (int64, error) {
@@ -225,17 +221,14 @@ func (r *customerRepository) CountCustomerTotalRentals(ctx context.Context, cust
 }
 
 func (r *customerRepository) GetCustomerTotalSpent(ctx context.Context, customerID int32) (string, error) {
-	val, err := r.q.GetCustomerTotalSpent(ctx, customerID)
+	total, err := r.q.GetCustomerTotalSpent(ctx, customerID)
 	if err != nil {
 		return "0.00", fmt.Errorf("get customer total spent: %w", err)
 	}
-	if s, ok := val.(string); ok {
-		return s, nil
+	if total == "" {
+		return "0.00", nil
 	}
-	if f, ok := numericToFloat(val); ok {
-		return fmt.Sprintf("%.2f", f), nil
-	}
-	return "0.00", nil
+	return total, nil
 }
 
 func (r *customerRepository) GetCustomerFavoriteCategory(ctx context.Context, customerID int32) (string, error) {

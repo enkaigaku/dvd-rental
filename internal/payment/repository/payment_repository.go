@@ -249,40 +249,40 @@ func (r *paymentRepository) CountRentalsByCustomer(ctx context.Context, customer
 }
 
 func (r *paymentRepository) GetCustomerTotalPayments(ctx context.Context, customerID int32) (string, error) {
-	val, err := r.q.GetCustomerTotalPayments(ctx, customerID)
+	total, err := r.q.GetCustomerTotalPayments(ctx, customerID)
 	if err != nil {
 		return "0.00", fmt.Errorf("get customer total payments: %w", err)
 	}
-	if s, ok := val.(string); ok {
-		return s, nil
+	if total == "" {
+		return "0.00", nil
 	}
-	return "0.00", nil
+	return total, nil
 }
 
 func (r *paymentRepository) GetCustomerTotalCharges(ctx context.Context, customerID int32) (string, error) {
-	val, err := r.q.GetCustomerTotalCharges(ctx, customerID)
+	total, err := r.q.GetCustomerTotalCharges(ctx, customerID)
 	if err != nil {
 		return "0.00", fmt.Errorf("get customer total charges: %w", err)
 	}
-	if s, ok := val.(string); ok {
-		return s, nil
+	if total == "" {
+		return "0.00", nil
 	}
-	return "0.00", nil
+	return total, nil
 }
 
 func (r *paymentRepository) GetStoreRevenue(ctx context.Context, startDate, endDate time.Time) ([]model.StoreRevenue, error) {
 	rows, err := r.q.GetStoreRevenue(ctx, paymentsqlc.GetStoreRevenueParams{
-		StartDate: timeToTimestamptz(startDate),
-		EndDate:   timeToTimestamptz(endDate),
+		PaymentDate:   timeToTimestamptz(startDate),
+		PaymentDate_2: timeToTimestamptz(endDate),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("get store revenue: %w", err)
 	}
 	result := make([]model.StoreRevenue, len(rows))
 	for i, row := range rows {
-		rev := ""
-		if s, ok := row.TotalRevenue.(string); ok {
-			rev = s
+		rev := row.TotalRevenue
+		if rev == "" {
+			rev = "0.00"
 		}
 		result[i] = model.StoreRevenue{
 			StoreID:      row.StoreID,

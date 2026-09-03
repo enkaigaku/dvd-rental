@@ -67,10 +67,10 @@ SELECT count(*) FROM rental
 WHERE customer_id = $1 AND return_date IS NULL;
 
 -- name: GetCustomerBalance :one
-SELECT
+SELECT (
   COALESCE((SELECT SUM(f.rental_rate) FROM rental r2 JOIN inventory i2 ON i2.inventory_id = r2.inventory_id JOIN film f ON f.film_id = i2.film_id WHERE r2.customer_id = $1), 0)
   - COALESCE((SELECT SUM(amount) FROM payment WHERE customer_id = $1), 0)
-  AS balance;
+)::text AS balance;
 
 -- name: CountCustomerTotalRentals :one
 SELECT count(*) FROM rental WHERE customer_id = $1;
