@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/enkaigaku/dvd-rental/internal/payment/model"
 	"github.com/enkaigaku/dvd-rental/internal/payment/repository"
+	"github.com/enkaigaku/dvd-rental/pkg/money"
 )
 
 // PaymentService contains business logic for payment operations.
@@ -200,32 +202,21 @@ func (s *PaymentService) GetCustomerBalance(ctx context.Context, customerID int3
 		return model.CustomerBalance{}, fmt.Errorf("customer_id must be positive: %w", ErrInvalidArgument)
 	}
 
-	totalCharges, err := s.repo.GetCustomerTotalCharges(ctx, customerID)
+	balance, err := s.repo.GetCustomerBalance(ctx, customerID)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return model.CustomerBalance{}, fmt.Errorf("customer %d: %w", customerID, ErrNotFound)
+		}
 		return model.CustomerBalance{}, err
 	}
-
-	totalPayments, err := s.repo.GetCustomerTotalPayments(ctx, customerID)
-	if err != nil {
-		return model.CustomerBalance{}, err
+	for _, field := range []*string{&balance.TotalCharges, &balance.TotalPayments, &balance.Balance} {
+		amount, err := money.Parse(*field)
+		if err != nil {
+			return model.CustomerBalance{}, err
+		}
+		*field = amount.FloatString(2)
 	}
-
-	// Compute balance = charges - payments using strconv arithmetic.
-	charges := parseDecimal(totalCharges)
-	payments := parseDecimal(totalPayments)
-	balance := charges - payments
-
-	rentalCount, _ := s.repo.CountRentalsByCustomer(ctx, customerID)
-	paymentCount, _ := s.repo.CountPaymentsByCustomer(ctx, customerID)
-
-	return model.CustomerBalance{
-		CustomerID:    customerID,
-		TotalCharges:  totalCharges,
-		TotalPayments: totalPayments,
-		Balance:       fmt.Sprintf("%.2f", balance),
-		RentalCount:   int32(rentalCount),
-		PaymentCount:  int32(paymentCount),
-	}, nil
+	return balance, nil
 }
 
 // GetRevenueByStore returns aggregated revenue by store for a date range.
@@ -245,18 +236,16 @@ func (s *PaymentService) GetRevenueByStore(ctx context.Context, startDate, endDa
 		return nil, "", err
 	}
 
-	var total float64
-	for _, s := range stores {
-		total += parseDecimal(s.TotalRevenue)
+	total := new(big.Rat)
+	for _, store := range stores {
+		amount, err := money.Parse(store.TotalRevenue)
+		if err != nil {
+			return nil, "", err
+		}
+		total.Add(total, amount)
 	}
 
-	return stores, fmt.Sprintf("%.2f", total), nil
-}
-
-func parseDecimal(s string) float64 {
-	var f float64
-	fmt.Sscanf(s, "%f", &f)
-	return f
+	return stores, total.FloatString(2), nil
 }
 
 // DeletePayment deletes a payment record.

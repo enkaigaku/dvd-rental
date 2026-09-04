@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/enkaigaku/dvd-rental/internal/customer/model"
 	"github.com/enkaigaku/dvd-rental/gen/sqlc/customer"
+	"github.com/enkaigaku/dvd-rental/internal/customer/model"
 )
 
 // ErrNotFound is returned when a queried entity does not exist.
@@ -234,7 +234,10 @@ func (r *customerRepository) GetCustomerTotalSpent(ctx context.Context, customer
 func (r *customerRepository) GetCustomerFavoriteCategory(ctx context.Context, customerID int32) (string, error) {
 	name, err := r.q.GetCustomerFavoriteCategory(ctx, customerID)
 	if err != nil {
-		return "", nil // no favorite category is not an error
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("get favorite category: %w", err)
 	}
 	return name, nil
 }

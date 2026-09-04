@@ -220,8 +220,8 @@ func (h *RentalHandler) ReturnRental(w http.ResponseWriter, r *http.Request) {
 	r2 := result.GetRental()
 	resp := struct {
 		rentalItem
-		LateFee     string `json:"late_fee,omitempty"`
-		DaysOverdue int32  `json:"days_overdue,omitempty"`
+		LateFee     string `json:"late_fee"`
+		DaysOverdue int32  `json:"days_overdue"`
 	}{
 		rentalItem: rentalItem{
 			ID:          r2.GetRentalId(),

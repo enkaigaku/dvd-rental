@@ -76,20 +76,22 @@ SELECT rental_date
 FROM rental
 WHERE rental_id = $1;
 
--- name: GetCustomerTotalPayments :one
-SELECT COALESCE(SUM(amount), 0)::text AS total
-FROM payment
-WHERE customer_id = $1;
-
--- name: GetCustomerTotalCharges :one
-SELECT COALESCE(SUM(f.rental_rate), 0)::text AS total
-FROM rental r
-JOIN inventory i ON i.inventory_id = r.inventory_id
-JOIN film f ON f.film_id = i.film_id
-WHERE r.customer_id = $1;
-
--- name: CountRentalsByCustomer :one
-SELECT count(*) FROM rental WHERE customer_id = $1;
+-- name: GetCustomerBalance :one
+SELECT c.customer_id,
+       charges.total::text AS total_charges,
+       payments.total::text AS total_payments,
+       (charges.total - payments.total)::text AS balance,
+       charges.rental_count, payments.payment_count
+FROM customer c
+CROSS JOIN LATERAL (
+    SELECT COALESCE(SUM(rc.amount), 0) AS total, COUNT(*)::int AS rental_count
+    FROM rental_charge rc WHERE rc.customer_id = c.customer_id
+) charges
+CROSS JOIN LATERAL (
+    SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*)::int AS payment_count
+    FROM payment WHERE customer_id = c.customer_id
+) payments
+WHERE c.customer_id = $1;
 
 -- name: GetStoreRevenue :many
 SELECT

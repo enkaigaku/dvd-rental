@@ -60,7 +60,7 @@ JOIN inventory i ON i.inventory_id = r.inventory_id
 JOIN film f ON f.film_id = i.film_id
 WHERE r.customer_id = $1
   AND r.return_date IS NULL
-  AND r.rental_date + (f.rental_duration || ' days')::interval < now() - interval '7 days';
+  AND r.rental_date + f.rental_duration * interval '24 hours' < now();
 
 -- name: CountCustomerActiveRentals :one
 SELECT count(*) FROM rental
@@ -68,15 +68,15 @@ WHERE customer_id = $1 AND return_date IS NULL;
 
 -- name: GetCustomerBalance :one
 SELECT (
-  COALESCE((SELECT SUM(f.rental_rate) FROM rental r2 JOIN inventory i2 ON i2.inventory_id = r2.inventory_id JOIN film f ON f.film_id = i2.film_id WHERE r2.customer_id = $1), 0)
-  - COALESCE((SELECT SUM(amount) FROM payment WHERE customer_id = $1), 0)
+  COALESCE((SELECT SUM(rc.amount) FROM rental_charge rc WHERE rc.customer_id = $1), 0.00)
+  - COALESCE((SELECT SUM(amount) FROM payment WHERE customer_id = $1), 0.00)
 )::text AS balance;
 
 -- name: CountCustomerTotalRentals :one
 SELECT count(*) FROM rental WHERE customer_id = $1;
 
 -- name: GetCustomerTotalSpent :one
-SELECT COALESCE(SUM(amount), 0)::text AS total FROM payment WHERE customer_id = $1;
+SELECT COALESCE(SUM(amount), 0.00)::text AS total FROM payment WHERE customer_id = $1;
 
 -- name: GetCustomerFavoriteCategory :one
 SELECT c.name
@@ -86,5 +86,5 @@ JOIN film_category fc ON fc.film_id = i.film_id
 JOIN category c ON c.category_id = fc.category_id
 WHERE r.customer_id = $1
 GROUP BY c.category_id, c.name
-ORDER BY count(*) DESC
+ORDER BY count(*) DESC, c.category_id ASC
 LIMIT 1;

@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/enkaigaku/dvd-rental/internal/payment/model"
 	"github.com/enkaigaku/dvd-rental/gen/sqlc/payment"
+	"github.com/enkaigaku/dvd-rental/internal/payment/model"
 )
 
 // ErrNotFound is returned when a queried entity does not exist.
@@ -26,6 +26,7 @@ type CreatePaymentParams struct {
 
 // PaymentRepository defines data-access operations for payments.
 type PaymentRepository interface {
+	GetCustomerBalance(ctx context.Context, customerID int32) (model.CustomerBalance, error)
 	GetPayment(ctx context.Context, paymentID int32) (model.Payment, error)
 	ListPayments(ctx context.Context, limit, offset int32) ([]model.Payment, error)
 	CountPayments(ctx context.Context) (int64, error)
@@ -42,9 +43,6 @@ type PaymentRepository interface {
 	GetCustomerName(ctx context.Context, customerID int32) (string, error)
 	GetStaffName(ctx context.Context, staffID int32) (string, error)
 	GetRentalDate(ctx context.Context, rentalID int32) (time.Time, error)
-	GetCustomerTotalPayments(ctx context.Context, customerID int32) (string, error)
-	GetCustomerTotalCharges(ctx context.Context, customerID int32) (string, error)
-	CountRentalsByCustomer(ctx context.Context, customerID int32) (int64, error)
 	GetStoreRevenue(ctx context.Context, startDate, endDate time.Time) ([]model.StoreRevenue, error)
 }
 
@@ -240,34 +238,19 @@ func toPaymentModels(rows []paymentsqlc.Payment) []model.Payment {
 	return payments
 }
 
-func (r *paymentRepository) CountRentalsByCustomer(ctx context.Context, customerID int32) (int64, error) {
-	count, err := r.q.CountRentalsByCustomer(ctx, customerID)
+func (r *paymentRepository) GetCustomerBalance(ctx context.Context, customerID int32) (model.CustomerBalance, error) {
+	row, err := r.q.GetCustomerBalance(ctx, customerID)
 	if err != nil {
-		return 0, fmt.Errorf("count rentals by customer: %w", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.CustomerBalance{}, ErrNotFound
+		}
+		return model.CustomerBalance{}, fmt.Errorf("get customer balance: %w", err)
 	}
-	return count, nil
-}
-
-func (r *paymentRepository) GetCustomerTotalPayments(ctx context.Context, customerID int32) (string, error) {
-	total, err := r.q.GetCustomerTotalPayments(ctx, customerID)
-	if err != nil {
-		return "0.00", fmt.Errorf("get customer total payments: %w", err)
-	}
-	if total == "" {
-		return "0.00", nil
-	}
-	return total, nil
-}
-
-func (r *paymentRepository) GetCustomerTotalCharges(ctx context.Context, customerID int32) (string, error) {
-	total, err := r.q.GetCustomerTotalCharges(ctx, customerID)
-	if err != nil {
-		return "0.00", fmt.Errorf("get customer total charges: %w", err)
-	}
-	if total == "" {
-		return "0.00", nil
-	}
-	return total, nil
+	return model.CustomerBalance{
+		CustomerID: row.CustomerID, TotalCharges: row.TotalCharges,
+		TotalPayments: row.TotalPayments, Balance: row.Balance,
+		RentalCount: row.RentalCount, PaymentCount: row.PaymentCount,
+	}, nil
 }
 
 func (r *paymentRepository) GetStoreRevenue(ctx context.Context, startDate, endDate time.Time) ([]model.StoreRevenue, error) {

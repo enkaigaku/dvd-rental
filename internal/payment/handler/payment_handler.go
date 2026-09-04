@@ -125,6 +125,13 @@ func (h *PaymentHandler) GetRevenueByStore(ctx context.Context, req *paymentv1.G
 		return nil, status.Error(codes.InvalidArgument, "end_date is required")
 	}
 
+	if err := req.GetStartDate().CheckValid(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid start_date")
+	}
+	if err := req.GetEndDate().CheckValid(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid end_date")
+	}
+
 	stores, total, err := h.svc.GetRevenueByStore(ctx, req.GetStartDate().AsTime(), req.GetEndDate().AsTime())
 	if err != nil {
 		return nil, toGRPCError(err)

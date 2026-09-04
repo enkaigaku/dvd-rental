@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/enkaigaku/dvd-rental/internal/rental/model"
 	"github.com/enkaigaku/dvd-rental/gen/sqlc/rental"
+	"github.com/enkaigaku/dvd-rental/internal/rental/model"
 )
 
 // ErrNotFound is returned when a queried entity does not exist.
@@ -25,6 +25,8 @@ type CreateRentalParams struct {
 
 // RentalRepository defines data-access operations for rentals.
 type RentalRepository interface {
+	WithinTx(ctx context.Context, fn func(RentalRepository) error) error
+	LockRentalResources(ctx context.Context, customerID, inventoryID int32) (bool, error)
 	GetRental(ctx context.Context, rentalID int32) (model.Rental, error)
 	ListRentals(ctx context.Context, limit, offset int32) ([]model.Rental, error)
 	CountRentals(ctx context.Context) (int64, error)
@@ -47,12 +49,13 @@ type RentalRepository interface {
 }
 
 type rentalRepository struct {
-	q *rentalsqlc.Queries
+	q    *rentalsqlc.Queries
+	pool *pgxpool.Pool
 }
 
 // NewRentalRepository creates a new RentalRepository.
 func NewRentalRepository(pool *pgxpool.Pool) RentalRepository {
-	return &rentalRepository{q: rentalsqlc.New(pool)}
+	return &rentalRepository{q: rentalsqlc.New(pool), pool: pool}
 }
 
 func (r *rentalRepository) GetRental(ctx context.Context, rentalID int32) (model.Rental, error) {
@@ -279,4 +282,29 @@ func stringToNumeric(s string) pgtype.Numeric {
 	var n pgtype.Numeric
 	_ = n.Scan(s)
 	return n
+}
+
+// WithinTx runs all operations against the same database transaction.
+func (r *rentalRepository) WithinTx(ctx context.Context, fn func(RentalRepository) error) error {
+	return pgx.BeginTxFunc(ctx, r.pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
+		return fn(&rentalRepository{q: r.q.WithTx(tx)})
+	})
+}
+
+// LockRentalResources serializes rentals by customer and inventory item.
+func (r *rentalRepository) LockRentalResources(ctx context.Context, customerID, inventoryID int32) (bool, error) {
+	active, err := r.q.LockCustomerForRental(ctx, customerID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, ErrNotFound
+		}
+		return false, fmt.Errorf("lock customer: %w", err)
+	}
+	if _, err := r.q.LockInventoryForRental(ctx, inventoryID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, ErrNotFound
+		}
+		return false, fmt.Errorf("lock inventory: %w", err)
+	}
+	return active, nil
 }

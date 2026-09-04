@@ -33,14 +33,21 @@ LIMIT $2 OFFSET $3;
 SELECT count(*) FROM rental WHERE inventory_id = $1;
 
 -- name: ListOverdueRentals :many
-SELECT rental_id, rental_date, inventory_id, customer_id, return_date, staff_id, last_update
-FROM rental
-WHERE return_date IS NULL
-ORDER BY rental_date ASC
+SELECT r.rental_id, r.rental_date, r.inventory_id, r.customer_id, r.return_date, r.staff_id, r.last_update
+FROM rental r
+JOIN inventory i ON i.inventory_id = r.inventory_id
+JOIN film f ON f.film_id = i.film_id
+WHERE r.return_date IS NULL
+  AND r.rental_date + f.rental_duration * interval '24 hours' < now()
+ORDER BY r.rental_date ASC, r.rental_id ASC
 LIMIT $1 OFFSET $2;
 
 -- name: CountOverdueRentals :one
-SELECT count(*) FROM rental WHERE return_date IS NULL;
+SELECT count(*) FROM rental r
+JOIN inventory i ON i.inventory_id = r.inventory_id
+JOIN film f ON f.film_id = i.film_id
+WHERE r.return_date IS NULL
+  AND r.rental_date + f.rental_duration * interval '24 hours' < now();
 
 -- name: CreateRental :one
 INSERT INTO rental (rental_date, inventory_id, customer_id, staff_id)
@@ -83,7 +90,7 @@ JOIN inventory i ON i.inventory_id = r.inventory_id
 JOIN film f ON f.film_id = i.film_id
 WHERE r.customer_id = $1
   AND r.return_date IS NULL
-  AND r.rental_date + (f.rental_duration || ' days')::interval < now() - interval '7 days';
+  AND r.rental_date + f.rental_duration * interval '24 hours' < now() - interval '168 hours';
 
 -- name: GetFilmRentalTermsByInventory :one
 SELECT f.rental_duration, f.rental_rate, f.replacement_cost, f.title, i.store_id
@@ -95,3 +102,9 @@ WHERE i.inventory_id = $1;
 INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)
 VALUES ($1, $2, $3, $4, now())
 RETURNING payment_id, customer_id, staff_id, rental_id, amount, payment_date;
+
+-- name: LockCustomerForRental :one
+SELECT activebool FROM customer WHERE customer_id = $1 FOR UPDATE;
+
+-- name: LockInventoryForRental :one
+SELECT inventory_id FROM inventory WHERE inventory_id = $1 FOR UPDATE;

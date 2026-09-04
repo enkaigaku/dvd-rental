@@ -7,6 +7,7 @@ import (
 
 	"github.com/enkaigaku/dvd-rental/internal/customer/model"
 	"github.com/enkaigaku/dvd-rental/internal/customer/repository"
+	"github.com/enkaigaku/dvd-rental/pkg/money"
 )
 
 // CustomerService contains business logic for customer operations.
@@ -227,6 +228,13 @@ func (s *CustomerService) GetCustomerStanding(ctx context.Context, customerID in
 	if customerID <= 0 {
 		return model.CustomerStanding{}, fmt.Errorf("customer_id must be positive: %w", ErrInvalidArgument)
 	}
+	customer, err := s.customerRepo.GetCustomer(ctx, customerID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return model.CustomerStanding{}, fmt.Errorf("customer %d: %w", customerID, ErrNotFound)
+		}
+		return model.CustomerStanding{}, err
+	}
 
 	overdue, err := s.customerRepo.CountCustomerOverdueRentals(ctx, customerID)
 	if err != nil {
@@ -241,8 +249,21 @@ func (s *CustomerService) GetCustomerStanding(ctx context.Context, customerID in
 		return model.CustomerStanding{}, err
 	}
 
-	var reasons []string
+	reasons := make([]string, 0)
 	inGoodStanding := true
+	if !customer.Active {
+		inGoodStanding = false
+		reasons = append(reasons, "account is inactive")
+	}
+	amount, err := money.Parse(balance)
+	if err != nil {
+		return model.CustomerStanding{}, err
+	}
+	balance = amount.FloatString(2)
+	if amount.Sign() > 0 {
+		inGoodStanding = false
+		reasons = append(reasons, "outstanding balance: "+balance)
+	}
 	if overdue > 0 {
 		inGoodStanding = false
 		reasons = append(reasons, fmt.Sprintf("%d overdue rental(s)", overdue))
@@ -266,6 +287,13 @@ func (s *CustomerService) GetCustomerStanding(ctx context.Context, customerID in
 func (s *CustomerService) GetCustomerSummary(ctx context.Context, customerID int32) (model.CustomerSummary, error) {
 	if customerID <= 0 {
 		return model.CustomerSummary{}, fmt.Errorf("customer_id must be positive: %w", ErrInvalidArgument)
+	}
+	_, err := s.customerRepo.GetCustomer(ctx, customerID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return model.CustomerSummary{}, fmt.Errorf("customer %d: %w", customerID, ErrNotFound)
+		}
+		return model.CustomerSummary{}, err
 	}
 
 	totalRentals, err := s.customerRepo.CountCustomerTotalRentals(ctx, customerID)
