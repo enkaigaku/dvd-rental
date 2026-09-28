@@ -46,7 +46,7 @@ gen/                         # GENERATED, gitignored: gen/proto/... and gen/sqlc
 
 ## Layering rules for core services
 
-Keep the flow **handler → service → repository**, with each layer depending only on the one below it.
+Keep the main flow **handler → service → repository**. Some existing create/update handlers also depend on repository parameter structs; avoid extending that coupling, and prefer service-layer input types when refactoring those paths.
 
 **Repository**
 - Define a `XxxRepository` interface and an unexported struct holding `q *<domain>sqlc.Queries`. The constructor is `NewXxxRepository(pool *pgxpool.Pool) XxxRepository`.
