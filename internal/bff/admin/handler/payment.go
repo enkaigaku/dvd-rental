@@ -193,3 +193,86 @@ func (h *PaymentHandler) DeletePayment(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// GetCustomerBalance returns balance info for a specific customer.
+func (h *PaymentHandler) GetCustomerBalance(w http.ResponseWriter, r *http.Request) {
+	customerID, err := parseIntParam(r, "id")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid customer id")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.paymentClient.GetCustomerBalance(ctx, &paymentv1.GetCustomerBalanceRequest{
+		CustomerId: customerID,
+	})
+	if err != nil {
+		handleGRPCError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"customer_id":    resp.GetCustomerId(),
+		"total_charges":  resp.GetTotalCharges(),
+		"total_payments": resp.GetTotalPayments(),
+		"balance":        resp.GetBalance(),
+		"rental_count":   resp.GetRentalCount(),
+		"payment_count":  resp.GetPaymentCount(),
+	})
+}
+
+// GetRevenueByStore returns aggregated revenue grouped by store for a date range.
+func (h *PaymentHandler) GetRevenueByStore(w http.ResponseWriter, r *http.Request) {
+	startStr := r.URL.Query().Get("start_date")
+	endStr := r.URL.Query().Get("end_date")
+	if startStr == "" || endStr == "" {
+		writeError(w, http.StatusBadRequest, "start_date and end_date query params required (RFC3339)")
+		return
+	}
+
+	startTime, err := time.Parse(time.RFC3339, startStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid start_date: "+err.Error())
+		return
+	}
+	endTime, err := time.Parse(time.RFC3339, endStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid end_date: "+err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.paymentClient.GetRevenueByStore(ctx, &paymentv1.GetRevenueByStoreRequest{
+		StartDate: timestampFromTime(startTime),
+		EndDate:   timestampFromTime(endTime),
+	})
+	if err != nil {
+		handleGRPCError(w, err)
+		return
+	}
+
+	type storeRevenue struct {
+		StoreID      int32  `json:"store_id"`
+		TotalRevenue string `json:"total_revenue"`
+		PaymentCount int32  `json:"payment_count"`
+		RentalCount  int32  `json:"rental_count"`
+	}
+	stores := make([]storeRevenue, len(resp.GetStores()))
+	for i, s := range resp.GetStores() {
+		stores[i] = storeRevenue{
+			StoreID:      s.GetStoreId(),
+			TotalRevenue: s.GetTotalRevenue(),
+			PaymentCount: s.GetPaymentCount(),
+			RentalCount:  s.GetRentalCount(),
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"stores":        stores,
+		"total_revenue": resp.GetTotalRevenue(),
+	})
+}

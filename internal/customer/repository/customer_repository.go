@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/enkaigaku/dvd-rental/internal/customer/model"
 	"github.com/enkaigaku/dvd-rental/gen/sqlc/customer"
+	"github.com/enkaigaku/dvd-rental/internal/customer/model"
 )
 
 // ErrNotFound is returned when a queried entity does not exist.
@@ -48,6 +48,12 @@ type CustomerRepository interface {
 	CreateCustomer(ctx context.Context, params CreateCustomerParams) (model.Customer, error)
 	UpdateCustomer(ctx context.Context, params UpdateCustomerParams) (model.Customer, error)
 	DeleteCustomer(ctx context.Context, customerID int32) error
+	CountCustomerOverdueRentals(ctx context.Context, customerID int32) (int64, error)
+	CountCustomerActiveRentals(ctx context.Context, customerID int32) (int64, error)
+	GetCustomerBalance(ctx context.Context, customerID int32) (string, error)
+	CountCustomerTotalRentals(ctx context.Context, customerID int32) (int64, error)
+	GetCustomerTotalSpent(ctx context.Context, customerID int32) (string, error)
+	GetCustomerFavoriteCategory(ctx context.Context, customerID int32) (string, error)
 }
 
 type customerRepository struct {
@@ -177,6 +183,63 @@ func (r *customerRepository) DeleteCustomer(ctx context.Context, customerID int3
 		return fmt.Errorf("delete customer: %w", err)
 	}
 	return nil
+}
+
+func (r *customerRepository) CountCustomerOverdueRentals(ctx context.Context, customerID int32) (int64, error) {
+	count, err := r.q.CountCustomerOverdueRentals(ctx, customerID)
+	if err != nil {
+		return 0, fmt.Errorf("count overdue rentals: %w", err)
+	}
+	return count, nil
+}
+
+func (r *customerRepository) CountCustomerActiveRentals(ctx context.Context, customerID int32) (int64, error) {
+	count, err := r.q.CountCustomerActiveRentals(ctx, customerID)
+	if err != nil {
+		return 0, fmt.Errorf("count active rentals: %w", err)
+	}
+	return count, nil
+}
+
+func (r *customerRepository) GetCustomerBalance(ctx context.Context, customerID int32) (string, error) {
+	balance, err := r.q.GetCustomerBalance(ctx, customerID)
+	if err != nil {
+		return "0.00", fmt.Errorf("get customer balance: %w", err)
+	}
+	if balance == "" {
+		return "0.00", nil
+	}
+	return balance, nil
+}
+
+func (r *customerRepository) CountCustomerTotalRentals(ctx context.Context, customerID int32) (int64, error) {
+	count, err := r.q.CountCustomerTotalRentals(ctx, customerID)
+	if err != nil {
+		return 0, fmt.Errorf("count total rentals: %w", err)
+	}
+	return count, nil
+}
+
+func (r *customerRepository) GetCustomerTotalSpent(ctx context.Context, customerID int32) (string, error) {
+	total, err := r.q.GetCustomerTotalSpent(ctx, customerID)
+	if err != nil {
+		return "0.00", fmt.Errorf("get customer total spent: %w", err)
+	}
+	if total == "" {
+		return "0.00", nil
+	}
+	return total, nil
+}
+
+func (r *customerRepository) GetCustomerFavoriteCategory(ctx context.Context, customerID int32) (string, error) {
+	name, err := r.q.GetCustomerFavoriteCategory(ctx, customerID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("get favorite category: %w", err)
+	}
+	return name, nil
 }
 
 func toCustomerModel(

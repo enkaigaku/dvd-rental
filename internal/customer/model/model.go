@@ -48,6 +48,26 @@ type City struct {
 	LastUpdate time.Time
 }
 
+// CustomerStanding represents the account standing of a customer.
+type CustomerStanding struct {
+	CustomerID         int32
+	InGoodStanding     bool
+	Reasons            []string
+	ActiveRentals      int32
+	OverdueRentals     int32
+	OutstandingBalance string
+}
+
+// CustomerSummary is an aggregate view of a customer's rental activity.
+type CustomerSummary struct {
+	CustomerID         int32
+	TotalRentals       int32
+	ActiveRentals      int32
+	TotalSpent         string
+	FavoriteCategory   string
+	OutstandingBalance string
+}
+
 // Country represents a country.
 type Country struct {
 	CountryID  int32

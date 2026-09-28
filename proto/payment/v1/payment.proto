@@ -17,6 +17,8 @@ service PaymentService {
   rpc ListPaymentsByDateRange(ListPaymentsByDateRangeRequest) returns (ListPaymentsResponse);
   rpc CreatePayment(CreatePaymentRequest) returns (Payment);
   rpc DeletePayment(DeletePaymentRequest) returns (google.protobuf.Empty);
+  rpc GetCustomerBalance(GetCustomerBalanceRequest) returns (CustomerBalance);
+  rpc GetRevenueByStore(GetRevenueByStoreRequest) returns (RevenueByStoreResponse);
 }
 
 // ---------------------------------------------------------------------------
@@ -89,4 +91,34 @@ message CreatePaymentRequest {
 
 message DeletePaymentRequest {
   int32 payment_id = 1;
+}
+
+message GetCustomerBalanceRequest {
+  int32 customer_id = 1;
+}
+
+message CustomerBalance {
+  int32 customer_id = 1;
+  string total_charges = 2;
+  string total_payments = 3;
+  string balance = 4;         // charges - payments (positive = owes money)
+  int32 rental_count = 5;
+  int32 payment_count = 6;
+}
+
+message GetRevenueByStoreRequest {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp end_date = 2;
+}
+
+message StoreRevenue {
+  int32 store_id = 1;
+  string total_revenue = 2;
+  int32 payment_count = 3;
+  int32 rental_count = 4;
+}
+
+message RevenueByStoreResponse {
+  repeated StoreRevenue stores = 1;
+  string total_revenue = 2;
 }

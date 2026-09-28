@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/enkaigaku/dvd-rental/internal/payment/model"
 	"github.com/enkaigaku/dvd-rental/internal/payment/repository"
+	"github.com/enkaigaku/dvd-rental/pkg/money"
 )
 
 // PaymentService contains business logic for payment operations.
@@ -192,6 +194,58 @@ func (s *PaymentService) CreatePayment(ctx context.Context, params repository.Cr
 		return model.Payment{}, err
 	}
 	return payment, nil
+}
+
+// GetCustomerBalance returns the financial summary for a customer.
+func (s *PaymentService) GetCustomerBalance(ctx context.Context, customerID int32) (model.CustomerBalance, error) {
+	if customerID <= 0 {
+		return model.CustomerBalance{}, fmt.Errorf("customer_id must be positive: %w", ErrInvalidArgument)
+	}
+
+	balance, err := s.repo.GetCustomerBalance(ctx, customerID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return model.CustomerBalance{}, fmt.Errorf("customer %d: %w", customerID, ErrNotFound)
+		}
+		return model.CustomerBalance{}, err
+	}
+	for _, field := range []*string{&balance.TotalCharges, &balance.TotalPayments, &balance.Balance} {
+		amount, err := money.Parse(*field)
+		if err != nil {
+			return model.CustomerBalance{}, err
+		}
+		*field = amount.FloatString(2)
+	}
+	return balance, nil
+}
+
+// GetRevenueByStore returns aggregated revenue by store for a date range.
+func (s *PaymentService) GetRevenueByStore(ctx context.Context, startDate, endDate time.Time) ([]model.StoreRevenue, string, error) {
+	if startDate.IsZero() {
+		return nil, "", fmt.Errorf("start_date must not be empty: %w", ErrInvalidArgument)
+	}
+	if endDate.IsZero() {
+		return nil, "", fmt.Errorf("end_date must not be empty: %w", ErrInvalidArgument)
+	}
+	if !startDate.Before(endDate) {
+		return nil, "", fmt.Errorf("start_date must be before end_date: %w", ErrInvalidArgument)
+	}
+
+	stores, err := s.repo.GetStoreRevenue(ctx, startDate, endDate)
+	if err != nil {
+		return nil, "", err
+	}
+
+	total := new(big.Rat)
+	for _, store := range stores {
+		amount, err := money.Parse(store.TotalRevenue)
+		if err != nil {
+			return nil, "", err
+		}
+		total.Add(total, amount)
+	}
+
+	return stores, total.FloatString(2), nil
 }
 
 // DeletePayment deletes a payment record.

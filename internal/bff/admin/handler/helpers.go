@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // writeJSON writes a JSON response with the given status code.
@@ -112,4 +114,9 @@ func parseQueryBool(r *http.Request, name string) bool {
 // decodeJSON decodes JSON request body into the given target.
 func decodeJSON(r *http.Request, target any) error {
 	return json.NewDecoder(r.Body).Decode(target)
+}
+
+// timestampFromTime converts a time.Time to a protobuf Timestamp.
+func timestampFromTime(t time.Time) *timestamppb.Timestamp {
+	return timestamppb.New(t)
 }

@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/enkaigaku/dvd-rental/internal/rental/model"
 	"github.com/enkaigaku/dvd-rental/internal/rental/repository"
 )
+
+const maxActiveRentals = 5
 
 // RentalService contains business logic for rental operations.
 type RentalService struct {
@@ -120,7 +123,7 @@ func (s *RentalService) ListRentalsByInventory(ctx context.Context, inventoryID,
 	return rentals, total, nil
 }
 
-// ListOverdueRentals returns rentals that have not been returned.
+// ListOverdueRentals returns unreturned rentals past their allowed duration.
 func (s *RentalService) ListOverdueRentals(ctx context.Context, pageSize, page int32) ([]model.Rental, int64, error) {
 	pageSize, page = clampPagination(pageSize, page)
 	offset := (page - 1) * pageSize
@@ -150,13 +153,47 @@ func (s *RentalService) CreateRental(ctx context.Context, params repository.Crea
 		return model.Rental{}, fmt.Errorf("staff_id must be positive: %w", ErrInvalidArgument)
 	}
 
-	// Verify the inventory item exists.
-	_, err := s.inventoryRepo.GetInventory(ctx, params.InventoryID)
+	var rental model.Rental
+	err := s.rentalRepo.WithinTx(ctx, func(repo repository.RentalRepository) error {
+		scoped := &RentalService{rentalRepo: repo, inventoryRepo: s.inventoryRepo}
+		var err error
+		rental, err = scoped.createRental(ctx, params)
+		return err
+	})
+	if err != nil {
+		return model.Rental{}, err
+	}
+	return rental, nil
+}
+
+func (s *RentalService) createRental(ctx context.Context, params repository.CreateRentalParams) (model.Rental, error) {
+	active, err := s.rentalRepo.LockRentalResources(ctx, params.CustomerID, params.InventoryID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			return model.Rental{}, fmt.Errorf("inventory %d not found: %w", params.InventoryID, ErrInvalidArgument)
+			return model.Rental{}, fmt.Errorf("invalid customer_id or inventory_id: %w", ErrInvalidArgument)
 		}
 		return model.Rental{}, err
+	}
+	if !active {
+		return model.Rental{}, fmt.Errorf("customer is inactive: %w", ErrRentalPolicy)
+	}
+
+	// Enforce rental policy: max active rentals.
+	activeCount, err := s.rentalRepo.CountActiveRentalsByCustomer(ctx, params.CustomerID)
+	if err != nil {
+		return model.Rental{}, err
+	}
+	if activeCount >= maxActiveRentals {
+		return model.Rental{}, fmt.Errorf("customer has reached maximum active rentals (%d): %w", maxActiveRentals, ErrRentalPolicy)
+	}
+
+	// Enforce rental policy: no severely overdue rentals.
+	overdueCount, err := s.rentalRepo.CountOverdueRentalsByCustomer(ctx, params.CustomerID)
+	if err != nil {
+		return model.Rental{}, err
+	}
+	if overdueCount > 0 {
+		return model.Rental{}, fmt.Errorf("customer has overdue rentals and cannot rent new items: %w", ErrRentalPolicy)
 	}
 
 	// Check availability.
@@ -181,20 +218,60 @@ func (s *RentalService) CreateRental(ctx context.Context, params repository.Crea
 	return rental, nil
 }
 
-// ReturnRental marks a rental as returned. Fails if not found or already returned.
-func (s *RentalService) ReturnRental(ctx context.Context, rentalID int32) (model.Rental, error) {
+// ReturnRental marks a rental as returned, computes late fees, and auto-creates
+// a late fee payment if the rental is overdue.
+func (s *RentalService) ReturnRental(ctx context.Context, rentalID int32) (model.ReturnResult, error) {
 	if rentalID <= 0 {
-		return model.Rental{}, fmt.Errorf("rental_id must be positive: %w", ErrInvalidArgument)
+		return model.ReturnResult{}, fmt.Errorf("rental_id must be positive: %w", ErrInvalidArgument)
 	}
 
+	var result model.ReturnResult
+	err := s.rentalRepo.WithinTx(ctx, func(repo repository.RentalRepository) error {
+		scoped := &RentalService{rentalRepo: repo}
+		var err error
+		result, err = scoped.returnRental(ctx, rentalID)
+		return err
+	})
+	if err != nil {
+		return model.ReturnResult{}, err
+	}
+	return result, nil
+}
+
+func (s *RentalService) returnRental(ctx context.Context, rentalID int32) (model.ReturnResult, error) {
 	rental, err := s.rentalRepo.ReturnRental(ctx, rentalID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			return model.Rental{}, fmt.Errorf("rental %d not found or already returned: %w", rentalID, ErrNotFound)
+			return model.ReturnResult{}, fmt.Errorf("rental %d not found or already returned: %w", rentalID, ErrNotFound)
 		}
-		return model.Rental{}, err
+		return model.ReturnResult{}, err
 	}
-	return rental, nil
+
+	result := model.ReturnResult{
+		Rental:  rental,
+		LateFee: "0.00",
+	}
+
+	// Calculate late fees based on film rental duration.
+	terms, err := s.rentalRepo.GetFilmRentalTermsByInventory(ctx, rental.InventoryID)
+	if err != nil {
+		return model.ReturnResult{}, fmt.Errorf("get rental terms: %w", err)
+	}
+
+	daysRented := int32(math.Ceil(rental.ReturnDate.Sub(rental.RentalDate).Hours() / 24))
+	allowedDays := int32(terms.RentalDuration)
+
+	if daysRented > allowedDays {
+		result.DaysOverdue = daysRented - allowedDays
+		result.LateFee = fmt.Sprintf("%d.00", result.DaysOverdue)
+
+		// Auto-create a late fee payment.
+		if err := s.rentalRepo.CreateLateFeePayment(ctx, rental.CustomerID, rental.StaffID, rental.RentalID, result.LateFee); err != nil {
+			return model.ReturnResult{}, fmt.Errorf("record late fee payment: %w", err)
+		}
+	}
+
+	return result, nil
 }
 
 // DeleteRental deletes a rental. Fails if payment records reference it.

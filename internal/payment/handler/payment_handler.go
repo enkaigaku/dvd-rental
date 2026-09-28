@@ -102,6 +102,56 @@ func (h *PaymentHandler) DeletePayment(ctx context.Context, req *paymentv1.Delet
 	return &emptypb.Empty{}, nil
 }
 
+func (h *PaymentHandler) GetCustomerBalance(ctx context.Context, req *paymentv1.GetCustomerBalanceRequest) (*paymentv1.CustomerBalance, error) {
+	balance, err := h.svc.GetCustomerBalance(ctx, req.GetCustomerId())
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+	return &paymentv1.CustomerBalance{
+		CustomerId:    balance.CustomerID,
+		TotalCharges:  balance.TotalCharges,
+		TotalPayments: balance.TotalPayments,
+		Balance:       balance.Balance,
+		RentalCount:   balance.RentalCount,
+		PaymentCount:  balance.PaymentCount,
+	}, nil
+}
+
+func (h *PaymentHandler) GetRevenueByStore(ctx context.Context, req *paymentv1.GetRevenueByStoreRequest) (*paymentv1.RevenueByStoreResponse, error) {
+	if req.GetStartDate() == nil {
+		return nil, status.Error(codes.InvalidArgument, "start_date is required")
+	}
+	if req.GetEndDate() == nil {
+		return nil, status.Error(codes.InvalidArgument, "end_date is required")
+	}
+
+	if err := req.GetStartDate().CheckValid(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid start_date")
+	}
+	if err := req.GetEndDate().CheckValid(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid end_date")
+	}
+
+	stores, total, err := h.svc.GetRevenueByStore(ctx, req.GetStartDate().AsTime(), req.GetEndDate().AsTime())
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+
+	pbStores := make([]*paymentv1.StoreRevenue, len(stores))
+	for i, s := range stores {
+		pbStores[i] = &paymentv1.StoreRevenue{
+			StoreId:      s.StoreID,
+			TotalRevenue: s.TotalRevenue,
+			PaymentCount: s.PaymentCount,
+			RentalCount:  s.RentalCount,
+		}
+	}
+	return &paymentv1.RevenueByStoreResponse{
+		Stores:       pbStores,
+		TotalRevenue: total,
+	}, nil
+}
+
 func toPaymentListResponse(payments []model.Payment, total int64) *paymentv1.ListPaymentsResponse {
 	protos := make([]*paymentv1.Payment, len(payments))
 	for i, p := range payments {

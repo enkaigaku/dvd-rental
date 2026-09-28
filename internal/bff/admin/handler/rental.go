@@ -203,7 +203,7 @@ func (h *RentalHandler) ReturnRental(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	rental, err := h.rentalClient.ReturnRental(ctx, &rentalv1.ReturnRentalRequest{
+	result, err := h.rentalClient.ReturnRental(ctx, &rentalv1.ReturnRentalRequest{
 		RentalId: rentalID,
 	})
 	if err != nil {
@@ -211,7 +211,16 @@ func (h *RentalHandler) ReturnRental(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, rentalToResponse(rental))
+	resp := struct {
+		rentalResponse
+		LateFee     string `json:"late_fee"`
+		DaysOverdue int32  `json:"days_overdue"`
+	}{
+		rentalResponse: rentalToResponse(result.GetRental()),
+		LateFee:        result.GetLateFee(),
+		DaysOverdue:    result.GetDaysOverdue(),
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // DeleteRental deletes a rental by ID.

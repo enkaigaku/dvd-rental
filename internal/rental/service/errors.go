@@ -11,4 +11,6 @@ var (
 	ErrAlreadyExists = errors.New("already exists")
 	// ErrForeignKey indicates the entity is referenced by another entity.
 	ErrForeignKey = errors.New("referenced by another entity")
+	// ErrRentalPolicy indicates a rental policy violation (e.g., max rentals reached, overdue items).
+	ErrRentalPolicy = errors.New("rental policy violation")
 )

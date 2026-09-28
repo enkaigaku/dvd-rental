@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/enkaigaku/dvd-rental/internal/payment/model"
 	"github.com/enkaigaku/dvd-rental/gen/sqlc/payment"
+	"github.com/enkaigaku/dvd-rental/internal/payment/model"
 )
 
 // ErrNotFound is returned when a queried entity does not exist.
@@ -26,6 +26,7 @@ type CreatePaymentParams struct {
 
 // PaymentRepository defines data-access operations for payments.
 type PaymentRepository interface {
+	GetCustomerBalance(ctx context.Context, customerID int32) (model.CustomerBalance, error)
 	GetPayment(ctx context.Context, paymentID int32) (model.Payment, error)
 	ListPayments(ctx context.Context, limit, offset int32) ([]model.Payment, error)
 	CountPayments(ctx context.Context) (int64, error)
@@ -42,6 +43,7 @@ type PaymentRepository interface {
 	GetCustomerName(ctx context.Context, customerID int32) (string, error)
 	GetStaffName(ctx context.Context, staffID int32) (string, error)
 	GetRentalDate(ctx context.Context, rentalID int32) (time.Time, error)
+	GetStoreRevenue(ctx context.Context, startDate, endDate time.Time) ([]model.StoreRevenue, error)
 }
 
 type paymentRepository struct {
@@ -234,4 +236,43 @@ func toPaymentModels(rows []paymentsqlc.Payment) []model.Payment {
 		payments[i] = toPaymentModel(row)
 	}
 	return payments
+}
+
+func (r *paymentRepository) GetCustomerBalance(ctx context.Context, customerID int32) (model.CustomerBalance, error) {
+	row, err := r.q.GetCustomerBalance(ctx, customerID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.CustomerBalance{}, ErrNotFound
+		}
+		return model.CustomerBalance{}, fmt.Errorf("get customer balance: %w", err)
+	}
+	return model.CustomerBalance{
+		CustomerID: row.CustomerID, TotalCharges: row.TotalCharges,
+		TotalPayments: row.TotalPayments, Balance: row.Balance,
+		RentalCount: row.RentalCount, PaymentCount: row.PaymentCount,
+	}, nil
+}
+
+func (r *paymentRepository) GetStoreRevenue(ctx context.Context, startDate, endDate time.Time) ([]model.StoreRevenue, error) {
+	rows, err := r.q.GetStoreRevenue(ctx, paymentsqlc.GetStoreRevenueParams{
+		PaymentDate:   timeToTimestamptz(startDate),
+		PaymentDate_2: timeToTimestamptz(endDate),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get store revenue: %w", err)
+	}
+	result := make([]model.StoreRevenue, len(rows))
+	for i, row := range rows {
+		rev := row.TotalRevenue
+		if rev == "" {
+			rev = "0.00"
+		}
+		result[i] = model.StoreRevenue{
+			StoreID:      row.StoreID,
+			TotalRevenue: rev,
+			PaymentCount: row.PaymentCount,
+			RentalCount:  row.RentalCount,
+		}
+	}
+	return result, nil
 }

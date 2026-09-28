@@ -211,17 +211,27 @@ func (h *RentalHandler) ReturnRental(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the rental.
-	rental, err := h.rentalClient.ReturnRental(ctx, &rentalv1.ReturnRentalRequest{RentalId: rentalID})
+	result, err := h.rentalClient.ReturnRental(ctx, &rentalv1.ReturnRentalRequest{RentalId: rentalID})
 	if err != nil {
 		grpcToHTTPError(w, err)
 		return
 	}
 
-	middleware.WriteJSON(w, http.StatusOK, rentalItem{
-		ID:          rental.GetRentalId(),
-		InventoryID: rental.GetInventoryId(),
-		RentalDate:  timestampToString(rental.GetRentalDate()),
-		ReturnDate:  timestampToString(rental.GetReturnDate()),
-		Status:      "returned",
-	})
+	r2 := result.GetRental()
+	resp := struct {
+		rentalItem
+		LateFee     string `json:"late_fee"`
+		DaysOverdue int32  `json:"days_overdue"`
+	}{
+		rentalItem: rentalItem{
+			ID:          r2.GetRentalId(),
+			InventoryID: r2.GetInventoryId(),
+			RentalDate:  timestampToString(r2.GetRentalDate()),
+			ReturnDate:  timestampToString(r2.GetReturnDate()),
+			Status:      "returned",
+		},
+		LateFee:     result.GetLateFee(),
+		DaysOverdue: result.GetDaysOverdue(),
+	}
+	middleware.WriteJSON(w, http.StatusOK, resp)
 }
